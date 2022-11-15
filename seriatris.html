@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Seiratris</title>
+<style>
+body {
+  background-color: white;
+  font-family: courier;
+  text-align: center;
+  font-size: 12pt;
+}
+p {
+  text-align: center;
+}
+table {
+	text-align: left;
+	margin-left: auto;
+	margin-right: auto;
+	border: 1px solid black;
+	border-spacing: 1px;
+}
+td {
+	border: 1px solid black;
+}
+#game {
+	width: 398px;
+	height: 718px;
+	background-image: none;
+	background-size: 400px 720px;
+	will-change: transform;
+}
+#stats {
+	width: 216px;
+	height: 718px;
+	vertical-align: top;
+	text-align: center;
+}
+.tile{
+	display: block;
+	width: 32px;
+	height: 32px;
+	position: fixed;
+	text-align: center;
+	line-height: 32px;
+	color: white;
+	font-weight: bold;
+	text-shadow: 1px 1px 0 black, -1px 1px 0 black, 1px -1px 0 black, -1px -1px 0 black, 1px 0px 0 black, -1px 0px 0 black, 0px 1px 0 black, 0px -1px 0 black;
+}
+.c1{
+	background-color: #b0ffff;
+	border: #00ffff inset 4px;
+}
+.c2{
+	background-color: #ffb0ff;
+	border: #ff00ff inset 4px;
+}
+.c3{
+	background-color: #ffffb0;
+	border: #ffff00 inset 4px;
+}
+.c4{
+	background-color: #b0b0ff;
+	border: #4040ff inset 4px;
+}
+.c5{
+	background-color: #b0ffb0;
+	border: #00ff00 inset 4px;
+}
+.c6{
+	background-color: #ffb0b0;
+	border: #ff0000 inset 4px;
+}
+</style>
+</head>
+<body>
+-=- S<span id="secret" onclick="toggleSyria()">e</span>riatris -=-<br>Stack the blocks in arithmetic progression in a line. Diagonals also count.<br>
+Use the arrows &lt;v&gt; or ASD to move blocks.<br>
+<br><br>
+<table><tr>
+<td id="game">
+<noscript>This game requires Javascript to play.</noscript>
+</td>
+<td id="stats">
+Game<br><br><br><br>
+Score:<br><span id="score"></span><br><br><br>
+Highscore:<br><span id="hiscore"></span><br><br><br>
+Level:<br><span id="level"></span><br><br>
+Speed: <span id="speed"></span> t/s<br>
+Max number: <span id="maxn"></span><br><br><br>
+Until next level:<br><span id="until"></span><br><br><br>
+Next block:<br><span id="next"></span><br><br><br><br><br><br><br>
+<span onclick="paused = !paused;">[Pause]</span><br><br>
+[Options]<br><br>
+<span onclick="reset();">[Restart]</span>
+</td>
+</tr></table>
+<script>
+var syria = false;
+var lv = 1;
+var pts = 0;
+var hi = 0;
+if (localStorage.getItem("hi")){
+	hi = Number(localStorage.getItem("hi"));
+}
+var tillnext = 15;
+function reset(){
+	nmap = [[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]];
+	imap = [[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]];
+	lv = 1;
+	hi = Math.max(pts, hi);
+	localStorage.setItem("hi", hi);
+	pts = 0;
+	document.getElementById("game").innerHTML = initstring;
+	needBlock = true;
+}
+function getTillNext(){
+	return lv*6+9;
+}
+function getSpeed(){
+	return 0.8+((lv-1)**0.5)*0.15    //in tiles/second
+}
+function getMaxSpawn(){
+	return Math.floor(10+((lv-1)**1.3))
+}
+var nmap = [[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]];
+var imap = [[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],[-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]];
+//10 by 18, -1 is empty ||| nmap for numbers, imap for ID
+var currentBlock = 0; //the one falling right now
+var currentColor = 1;
+var nextBlock = getRandomIntInclusive(1, getMaxSpawn()); //the one after that
+var counter = 0; //this can probably be workede around
+var currentId = 0; //ID for document purpose
+var taken = []; //IDs taken
+function getRandomIntInclusive(min, max) {
+	min = Math.ceil(min);
+	max = Math.floor(max);
+	return Math.floor(Math.random() * (max - min + 1) + min); //thanks again mozilla
+}
+var initstring = ""
+for (i = 0; i < 180; i++){
+	initstring += '<span id="b' + i + '" class="tile c'+getRandomIntInclusive(1, 6)+'" style="display: none; top: 0px; left: 0px; transform: none"></span>'
+}
+document.getElementById("game").innerHTML = initstring;
+var needBlock = true;
+var paused = false;
+var offset = [0, 0]; //current falling block's position in pixels
+var grace1 = 40;
+var grace2 = 300;
+var inFall = false;
+function doFall(){
+	fell = false;
+	for (i = 0; i < 10; i++){
+		for (j = 16; j >= 0; j--){
+			if (nmap[i][j+1] < 0 && nmap[i][j] > 0){
+				nmap[i][j+1] = nmap[i][j];
+				nmap[i][j] = -1;
+				document.getElementById("b"+(imap[i][j])).style.transform = document.getElementById("b"+(imap[i][j])).style.transform + "translateY(40px)";
+				imap[i][j+1] = imap[i][j];
+				imap[i][j] = -1;
+				fell = true;
+			}
+		}
+	}
+	return fell;
+}
+function findMatches(){
+	matches = []
+	for (i = 0; i < 10; i++){
+		for (j = 0; j < 18; j++){
+			//horizontal
+			if (i < 8 && nmap[i][j] + nmap[i+2][j] == 2 * nmap[i+1][j] && (nmap[i][j] > 0 && nmap[i+1][j] > 0 && nmap[i+2][j] > 0)){
+				matches.push([i, j, "h", 3, Math.max(nmap[i][j], nmap[i+2][j]), nmap[i][j] - nmap[i+1][j]]);
+			}
+			//vertical
+			if (j < 16 && nmap[i][j] + nmap[i][j+2] == 2 * nmap[i][j+1] && (nmap[i][j] > 0 && nmap[i][j+1] > 0 && nmap[i][j+2] > 0)){
+				matches.push([i, j, "v", 3, Math.max(nmap[i][j], nmap[i][j+2]), nmap[i][j] - nmap[i][j+1]]);
+			}
+			//diagonal
+			if (j < 16 && i < 8 && nmap[i][j] + nmap[i+2][j+2] == 2 * nmap[i+1][j+1] && (nmap[i][j] > 0 && nmap[i+1][j+1] > 0 && nmap[i+2][j+2] > 0)){
+				matches.push([i, j, "d", 3, Math.max(nmap[i][j], nmap[i+2][j+2]), nmap[i][j] - nmap[i+1][j+1]]);
+			}
+			//antidiagonal
+			if (j >= 2 && i < 8 && nmap[i][j] + nmap[i+2][j-2] == 2 * nmap[i+1][j-1] && (nmap[i][j] > 0 && nmap[i+1][j-1] > 0 && nmap[i+2][j-2] > 0)){
+				matches.push([i, j, "a", 3, Math.max(nmap[i][j], nmap[i+2][j-2]), nmap[i][j] - nmap[i+1][j-1]]);
+			}
+		}
+	}
+	matches = matches.sort(orderm);
+	//combine lines
+	for (k = 0; k < matches.length-1; k++){
+		if (mergeable(matches[k], matches[k+1])){
+			matches[k+1] = [matches[k][0], matches[k][1], matches[k][2], matches[k][3]+1, Math.max(matches[k][4], matches[k+1][4]), matches[k][5]];
+			matches[k] = "delete this";
+		}
+	}
+	return matches.filter(x => Array.isArray(x))
+} //im such a good developer
+function mergeable(m1, m2){
+	if (m2 === undefined){return false;}
+	if (m1[2] == m2[2] && m2 !== undefined && m1[5] == m2[5]){
+		switch (m1[2]){
+			case "h":
+				return (m1[1] == m2[1] && m1[0]+m1[3]-2 == m2[0])
+				break;
+			case "v":
+				return (m1[0] == m2[0] && m1[1]+m1[3]-2 == m2[1])
+				break;
+			case "d":
+				return (m1[0]-m1[1] == m2[0]-m2[1] && m1[0]+m1[3]-2 == m2[0])
+				break;
+			case "a":
+				return (m1[0]+m1[1] == m2[0]+m2[1] && m1[0]+m1[3]-2 == m2[0])
+				break;
+		}
+	}
+	else {return false;}
+}
+function orderm(a, b){
+	if (a[2] > b[2]) {return 1} else if (a[2] < b[2]) {return -1}
+	else {
+		switch (a[2]){
+			case "h":
+				if (a[1] > b[1]) {return 1} else if (a[1] < b[1]) {return -1}
+				else if (a[0] > b[0]) {return 1} else if (a[0] < b[0]) {return -1} else {return 0}
+				break;
+			case "v":
+				if (a[0] > b[0]) {return 1} else if (a[0] < b[0]) {return -1}
+				else if (a[1] > b[1]) {return 1} else if (a[1] < b[1]) {return -1} else {return 0}
+				break;
+			case "d":
+				if (a[0]-a[1] > b[0]-b[1]) {return 1} else if (a[0]-a[1] < b[0]-b[1]) {return -1}
+				else if (a[0] > b[0]) {return 1} else if (a[0] < b[0]) {return -1} else {return 0}
+				break;
+			case "a":
+				if (a[0]+a[1] > b[0]+b[1]) {return 1} else if (a[0]+a[1] < b[0]+b[1]) {return -1}
+				else if (a[0] > b[0]) {return 1} else if (a[0] < b[0]) {return -1} else {return 0}
+				break;
+		}
+	}
+}
+function destroy(bid){
+	taken = taken.filter((element) => element != bid);
+	var tempmap = imap.flat();
+	if (tempmap.includes(bid)){
+		var newImap = [];
+		var target = tempmap.indexOf(bid);
+		tempmap[target] = -1;
+		target = [Math.floor(target/18), target % 18];
+		nmap[target[0]][target[1]] = -1;
+		document.getElementById("b"+bid).style.display = "none";
+		document.getElementById("b"+bid).style.transform = "none";
+		for (i = 0; i < 10; i++){
+			newImap.push(tempmap.slice(i*18, i*18 + 18));
+		}
+	}
+}
+function typeVector(a){
+	switch (a){
+		case "h": return [1, 0];
+		case "v": return [0, 1];
+		case "d": return [1, 1];
+		case "a": return [1, -1];
+	}
+}
+function step(){
+	//game loop
+	if (!paused){
+		if(needBlock){
+			if (imap[5][0] == -1){
+				currentId = counter;
+				taken.push(counter);
+				document.getElementById("b"+counter).style.display = "block";
+				document.getElementById("b"+counter).style.transform = "translate(200px,0px)";
+				offset = [200, 0];
+				currentBlock = nextBlock;
+				nextBlock = getRandomIntInclusive(1, getMaxSpawn());
+				document.getElementById("b"+counter).textContent = currentBlock;
+				do {
+					counter++;
+					if (counter == 180){
+						counter = 0;
+					}
+				} while (taken.includes(counter));
+				needBlock = false;
+			}
+			else {
+				reset();
+			}
+		}
+		else{
+			offset[0] = Math.min(Math.max(offset[0], 0), 360);
+			offset[1] = Math.min(Math.max(offset[1], 0), 680);
+			if (nmap[Math.floor(offset[0]/40)][Math.floor(offset[1]/40)+1] > 0 || offset[1] == 680){
+				grace1--;
+				grace2--;
+				offset[1] = Math.floor(offset[1]/40)*40;
+				if (grace1 == 0 || grace2 == 0){
+					needBlock = true;
+					grace1 = 40;
+					grace2 = 300;
+					nmap[Math.floor(offset[0]/40)][Math.floor(offset[1]/40)] = currentBlock;
+					imap[Math.floor(offset[0]/40)][Math.floor(offset[1]/40)] = currentId;
+					f = true;
+					while (f){
+						m = findMatches();
+						b = [];
+						for (let i = 0; i < m.length; i++){
+							for (let j = 0; j < m[i][3]; j++){
+								if (!b.includes(imap[m[i][0]+j*typeVector(m[i][2])[0]][m[i][1]+j*typeVector(m[i][2])[1]])){
+									b.push(imap[m[i][0]+j*typeVector(m[i][2])[0]][m[i][1]+j*typeVector(m[i][2])[1]]);
+								}
+								destroy(imap[m[i][0]+j*typeVector(m[i][2])[0]][m[i][1]+j*typeVector(m[i][2])[1]]); //lmao
+							}
+							pts += Math.floor(10 * (lv**0.75) * ((m[i][3]-2) ** 2.5) * (m[i][4] ** 0.25) * ((1+Math.abs(m[i][5])) ** 0.35) * (m.length ** 1.25));
+							tillnext -= b.length
+							while (tillnext < 0){
+								lv++;
+								tillnext += getTillNext();
+							}
+						}
+						f = doFall();
+					}
+				}
+			}
+			else{
+				offset[1] += getSpeed()*0.4;
+			}
+			document.getElementById("b"+currentId).style.transform = "translate("+offset[0]+"px,"+offset[1]+"px)";
+		}
+		//status
+		document.getElementById("score").textContent = pts;
+		document.getElementById("hiscore").textContent = hi;
+		document.getElementById("level").textContent = lv;
+		document.getElementById("speed").textContent = getSpeed().toPrecision(3);
+		document.getElementById("maxn").textContent = getMaxSpawn();
+		document.getElementById("until").textContent = tillnext;
+		document.getElementById("next").textContent = nextBlock;
+	}
+}
+function toggleSyria(){
+	syria = !syria;
+	if (syria){
+		document.getElementById("game").style["background-image"] = "url(https://flagpedia.net/data/flags/w1600/sy.png)"
+		document.getElementById("secret").textContent = "y";
+	}
+	else{
+		document.getElementById("game").style["background-image"] = "none";
+		document.getElementById("secret").textContent = "e";
+	}
+}
+mainloop = setInterval(step, 10);
+document.addEventListener('keydown', (event) => {
+	const keyName = event.key;
+	if (keyName === "ArrowLeft" && nmap[Math.floor(offset[0]/40)-1][Math.floor(offset[1]/40)+1] < 0 && offset[0] > 0){
+		offset[0] -= 40;
+		grace1 = Math.min(40, grace1 + 8);
+	}
+	if (keyName === "ArrowRight" && nmap[Math.floor(offset[0]/40)+1][Math.floor(offset[1]/40)+1] < 0 && offset[0] < 360){
+		offset[0] += 40;
+		grace1 = Math.min(40, grace1 + 8);
+	}
+	if (keyName === "ArrowDown"){
+		offset[1] += Math.min(getSpeed()*13, 39);
+	}
+	
+}, false);
+</script>
+</body>
