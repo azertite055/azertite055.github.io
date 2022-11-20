@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Codependent Game of Life</title>
+<style>
+body {
+	font-family: courier;
+	font-size: 12pt;
+	text-align: center;
+}
+table {
+	border: 1px solid black;
+	border-spacing: 0px;
+	margin-left: auto;
+	margin-right: auto;
+}
+td {
+	border: 1px solid black;
+	text-align: center;
+}
+#main {
+	width: 970px;
+	height: 720px;
+}
+.rule , .rule td {
+	border: none;
+}
+#b1, #b2 {
+	line-height: 0.4;
+}
+</style>
+</head>
+<body>
+-=- Codependent Game of Life -=-<br><br>
+Click to flip the state of the cell under the lower part of the selector. The rule depends on the state of the corresponding cell on the other board.<br><br><br><br>
+<noscript>This page requires Javascript to function. You appear to have it disabled or unavailable.</noscript>
+<table id="main"><tr><td>
+Board 1
+</td><td>
+Board 2
+</td></tr><tr><td>
+<div id="b1" onmouseenter="onboard=true" onmouseleave="onboard=false"></div>
+</td><td>
+<div id="b2" onmouseenter="onboard=true" onmouseleave="onboard=false"></div>
+</td></tr><tr><td>
+Rule if the board 2 cell is<br><br>
+On:<table class="rule"><tr>
+<td>#</td><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td>
+</tr><tr>
+<td>Birth:</td>
+<td><input type="checkbox" id="b011" name="b011"></td>
+<td><input type="checkbox" id="b111" name="b111"></td>
+<td><input type="checkbox" id="b211" name="b211"></td>
+<td><input type="checkbox" id="b311" name="b311"></td>
+<td><input type="checkbox" id="b411" name="b411"></td>
+<td><input type="checkbox" id="b511" name="b511"></td>
+<td><input type="checkbox" id="b611" name="b611"></td>
+<td><input type="checkbox" id="b711" name="b711"></td>
+<td><input type="checkbox" id="b811" name="b811"></td>
+</tr><tr>
+<td>Survival:</td>
+<td><input type="checkbox" id="s011" name="s011"></td>
+<td><input type="checkbox" id="s111" name="s111"></td>
+<td><input type="checkbox" id="s211" name="s211"></td>
+<td><input type="checkbox" id="s311" name="s311"></td>
+<td><input type="checkbox" id="s411" name="s411"></td>
+<td><input type="checkbox" id="s511" name="s511"></td>
+<td><input type="checkbox" id="s611" name="s611"></td>
+<td><input type="checkbox" id="s711" name="s711"></td>
+<td><input type="checkbox" id="s811" name="s811"></td>
+</tr></table><br>
+Off:<table class="rule"><tr>
+<td>#</td><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td>
+</tr><tr>
+<td>Birth:</td>
+<td><input type="checkbox" id="b001" name="b001"></td>
+<td><input type="checkbox" id="b101" name="b101"></td>
+<td><input type="checkbox" id="b201" name="b201"></td>
+<td><input type="checkbox" id="b301" name="b301"></td>
+<td><input type="checkbox" id="b401" name="b401"></td>
+<td><input type="checkbox" id="b501" name="b501"></td>
+<td><input type="checkbox" id="b601" name="b601"></td>
+<td><input type="checkbox" id="b701" name="b701"></td>
+<td><input type="checkbox" id="b801" name="b801"></td>
+</tr><tr>
+<td>Survival:</td>
+<td><input type="checkbox" id="s001" name="s001"></td>
+<td><input type="checkbox" id="s101" name="s101"></td>
+<td><input type="checkbox" id="s201" name="s201"></td>
+<td><input type="checkbox" id="s301" name="s301"></td>
+<td><input type="checkbox" id="s401" name="s401"></td>
+<td><input type="checkbox" id="s501" name="s501"></td>
+<td><input type="checkbox" id="s601" name="s601"></td>
+<td><input type="checkbox" id="s701" name="s701"></td>
+<td><input type="checkbox" id="s801" name="s801"></td>
+</tr></table>
+</td><td>
+Rule if the board 1 cell is<br><br>
+On:<table class="rule"><tr>
+<td>#</td><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td>
+</tr><tr>
+<td>Birth:</td>
+<td><input type="checkbox" id="b012" name="b012"></td>
+<td><input type="checkbox" id="b112" name="b112"></td>
+<td><input type="checkbox" id="b212" name="b212"></td>
+<td><input type="checkbox" id="b312" name="b312"></td>
+<td><input type="checkbox" id="b412" name="b412"></td>
+<td><input type="checkbox" id="b512" name="b512"></td>
+<td><input type="checkbox" id="b612" name="b612"></td>
+<td><input type="checkbox" id="b712" name="b712"></td>
+<td><input type="checkbox" id="b812" name="b812"></td>
+</tr><tr>
+<td>Survival:</td>
+<td><input type="checkbox" id="s012" name="s012"></td>
+<td><input type="checkbox" id="s112" name="s112"></td>
+<td><input type="checkbox" id="s212" name="s212"></td>
+<td><input type="checkbox" id="s312" name="s312"></td>
+<td><input type="checkbox" id="s412" name="s412"></td>
+<td><input type="checkbox" id="s512" name="s512"></td>
+<td><input type="checkbox" id="s612" name="s612"></td>
+<td><input type="checkbox" id="s712" name="s712"></td>
+<td><input type="checkbox" id="s812" name="s812"></td>
+</tr></table><br>
+Off:<table class="rule"><tr>
+<td>#</td><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td>
+</tr><tr>
+<td>Birth:</td>
+<td><input type="checkbox" id="b002" name="b002"></td>
+<td><input type="checkbox" id="b102" name="b102"></td>
+<td><input type="checkbox" id="b202" name="b202"></td>
+<td><input type="checkbox" id="b302" name="b302"></td>
+<td><input type="checkbox" id="b402" name="b402"></td>
+<td><input type="checkbox" id="b502" name="b502"></td>
+<td><input type="checkbox" id="b602" name="b602"></td>
+<td><input type="checkbox" id="b702" name="b702"></td>
+<td><input type="checkbox" id="b802" name="b802"></td>
+</tr><tr>
+<td>Survival:</td>
+<td><input type="checkbox" id="s002" name="s002"></td>
+<td><input type="checkbox" id="s102" name="s102"></td>
+<td><input type="checkbox" id="s202" name="s202"></td>
+<td><input type="checkbox" id="s302" name="s302"></td>
+<td><input type="checkbox" id="s402" name="s402"></td>
+<td><input type="checkbox" id="s502" name="s502"></td>
+<td><input type="checkbox" id="s602" name="s602"></td>
+<td><input type="checkbox" id="s702" name="s702"></td>
+<td><input type="checkbox" id="s802" name="s802"></td>
+</tr></table>
+</td></tr></table>
+<button onclick="randomFill(0)">Randomize board 1</button><button onclick="randomFill(1)">Randomize board 2</button>&nbsp;<button onclick="clearBoard(0)">Clear board 1</button><button onclick="clearBoard(1)">Clear board 2</button>&nbsp;<button onclick="if(paused){step()}">Step</button><button onclick="paused = !paused; if(!paused){step()}">Run/Pause</button> Speed: <input type="range" id="speed" name="speed" min="0" max="2" step="0.01">
+<script>
+cellpart = [];
+cellpart2 = [];
+target = [0, 0, 0];
+wrap = false;
+paused = true;
+for (i = 0; i < 50; i++){
+	cellpart.push(0);
+}
+for (let i = 0; i < 50; i++){
+	cellpart2.push(cellpart);
+}
+htmlpart = ""
+cell = structuredClone([cellpart2, cellpart2]);
+for (let i = 0; i < 2; i++){
+	for (j = 0; j < 50; j++){
+		for(k = 0; k < 50; k++){
+			htmlpart += "<span id='" + j + "x" + k + "b" + (i+1) + "' onclick='cell[" + i + "][" + j + "][" + k + "] = 1-cell[" + i + "][" + j + "][" + k + "]; render();' style=display:inline-block;width:9.6px;height:9.6px;>&nbsp;</span>";
+		}
+		htmlpart += "<br>"
+	}
+	document.getElementById("b"+(i+1)).innerHTML = htmlpart;
+	htmlpart = "";
+}
+function randomFill(i){
+	for (j = 0; j < 50; j++){
+		for(k = 0; k < 50; k++){
+			cell[i][j][k] = Math.round(Math.random());
+		}
+	}
+	render();
+}
+function clearBoard(i){
+	for (j = 0; j < 50; j++){
+		for(k = 0; k < 50; k++){
+			cell[i][j][k] = 0;
+		}
+	}
+	render();
+}
+var rule = [[[[],[]],[[],[]]],[[[],[]],[[],[]]]]; //[board][other_state (flipped)][birth/survival]
+function makeRule(){
+	rule = [[[[],[]],[[],[]]],[[[],[]],[[],[]]]];
+	for (let i = 0; i < 9; i++){
+		if (document.getElementById("b" + i + "11").checked){rule[0][0][0].push(i)}
+		if (document.getElementById("s" + i + "11").checked){rule[0][0][1].push(i)}
+		if (document.getElementById("b" + i + "01").checked){rule[0][1][0].push(i)}
+		if (document.getElementById("s" + i + "01").checked){rule[0][1][1].push(i)}
+		if (document.getElementById("b" + i + "12").checked){rule[1][0][0].push(i)}
+		if (document.getElementById("s" + i + "12").checked){rule[1][0][1].push(i)}
+		if (document.getElementById("b" + i + "02").checked){rule[1][1][0].push(i)}
+		if (document.getElementById("s" + i + "02").checked){rule[1][1][1].push(i)}		
+	}
+}
+function neighbors(x, y, b){
+	return cell[b][x][(((y+1) % 50) + 50) % 50] + cell[b][x][(((y-1) % 50) + 50) % 50] + cell[b][(((x+1) % 50) + 50) % 50][y] + cell[b][(((x-1) % 50) + 50) % 50][y] + cell[b][(((x+1) % 50) + 50) % 50][(((y+1) % 50) + 50) % 50] + cell[b][(((x-1) % 50) + 50) % 50][(((y-1) % 50) + 50) % 50] + cell[b][(((x+1) % 50) + 50) % 50][(((y-1) % 50) + 50) % 50] + cell[b][(((x-1) % 50) + 50) % 50][(((y+1) % 50) + 50) % 50];
+}
+function render(){
+	for (i = 0; i < 2; i++){
+		for (j = 0; j < 50; j++){
+			for(k = 0; k < 50; k++){
+				if (cell[i][j][k] == 0){
+					document.getElementById(j+"x"+k+"b"+(i+1)).textContent = "\xa0";
+				}
+				if (cell[i][j][k] == 1){
+					document.getElementById(j+"x"+k+"b"+(i+1)).textContent = ".";
+				}
+			}
+		}
+	}
+}
+function step(){
+	makeRule();
+	cellTemp = [];
+	for (i = 0; i < 2; i++){
+		cellTemp.push([]);
+		for (j = 0; j < 50; j++){
+			cellTemp[i].push([])
+			for(k = 0; k < 50; k++){
+				if (rule[i][1-cell[1-i][j][k]][0].includes(neighbors(j, k, i)) && cell[i][j][k] == 0){
+					cellTemp[i][j].push(1);
+				}
+				if (!rule[i][1-cell[1-i][j][k]][0].includes(neighbors(j, k, i)) && cell[i][j][k] == 0){
+					cellTemp[i][j].push(0);
+				}
+				if (rule[i][1-cell[1-i][j][k]][1].includes(neighbors(j, k, i)) && cell[i][j][k] == 1){
+					cellTemp[i][j].push(1);
+				}
+				if (!rule[i][1-cell[1-i][j][k]][1].includes(neighbors(j, k, i)) && cell[i][j][k] == 1){
+					cellTemp[i][j].push(0);
+				}
+			}
+		}
+	}
+	cell = cellTemp;
+	render();
+	if (!paused){
+		setTimeout(step, Math.floor(1000 / (10 ** Number(speed.value))))
+	}
+}
+step(); //does nothing, needed to fix click interaction for some reason
+</script>
+</body>
+</html>
