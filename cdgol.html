@@ -298,8 +298,8 @@ function buildRuletable(fromEntry){
 			switch (i){
 				case 0:
 					if (rule[0][1][0].includes(neighborClasses[j][1] + neighborClasses[j][3]) && rule[1][1][0].includes(neighborClasses[j][2] + neighborClasses[j][3])) {next = 3}
-					else if (rule[0][1][0].includes(neighborClasses[j][1] + neighborClasses[j][3])) {next = 1}
-					else if (rule[1][1][0].includes(neighborClasses[j][2] + neighborClasses[j][3])) {next = 2}
+					else if (rule[0][1][0].includes(neighborClasses[j][1] + neighborClasses[j][3]) && !rule[1][1][0].includes(neighborClasses[j][2] + neighborClasses[j][3])) {next = 1}
+					else if (rule[1][1][0].includes(neighborClasses[j][2] + neighborClasses[j][3]) && !rule[0][1][0].includes(neighborClasses[j][1] + neighborClasses[j][3])) {next = 2}
 					else {next = 0}
 					break;
 				case 1:
@@ -316,8 +316,8 @@ function buildRuletable(fromEntry){
 					break;
 				case 3:
 					if (rule[0][0][1].includes(neighborClasses[j][1] + neighborClasses[j][3]) && rule[1][0][1].includes(neighborClasses[j][2] + neighborClasses[j][3])) {next = 3}
-					else if (rule[0][0][1].includes(neighborClasses[j][1] + neighborClasses[j][3])) {next = 2}
-					else if (rule[1][0][1].includes(neighborClasses[j][2] + neighborClasses[j][3])) {next = 1}
+					else if (rule[0][0][1].includes(neighborClasses[j][1] + neighborClasses[j][3]) && !rule[1][0][1].includes(neighborClasses[j][2] + neighborClasses[j][3])) {next = 1}
+					else if (rule[1][0][1].includes(neighborClasses[j][2] + neighborClasses[j][3]) && !rule[0][0][1].includes(neighborClasses[j][1] + neighborClasses[j][3])) {next = 2}
 					else {next = 0}
 					break;
 			}
