@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chesstris</title>
+<style>
+body {
+	background-color: white;
+	font-family: courier;
+	font-size: 16px;
+}
+table {
+	text-align: left;
+	border: 1px solid black;
+	border-spacing: 0px;
+}
+td {
+	border: 1px solid black;
+}
+.centered {
+	text-align: center;
+	margin-left: auto;
+	margin-right: auto;
+}
+.ma {
+	margin: 30px auto;
+}
+table.ma {
+	border: 1px double black;
+}
+td {
+	border: 1px solid black;
+}
+.ch {
+	background-color: #eaeaea;
+	border: 1px solid white;
+}
+.square.tile {
+	background-color: #bababa;
+	border: 1px solid rgba(0, 0, 0, 0.3);
+}
+.ch.tile {
+	background-color: #a0a0a0;
+	border: 1px solid rgba(0, 0, 0, 0.3);
+}
+.square {
+	height: 32px;
+	width: 32px;
+	border: none;
+	padding: 0px;
+	text-align: center;
+	overflow: hidden;
+	border: 1px solid white;
+}
+#board > table{
+	border: none;
+	margin: 0px;
+	font-size: 22px;
+	padding: 0px;
+}
+.square.tile.moves{
+	background-color: #5ED68A;
+}
+.ch.tile.moves{
+	background-color: #7CE2A2;
+}
+.square.tile.current{
+	background-color: #939CFF;
+}
+.ch.tile.current{
+	background-color: #6D75E0;
+}
+</style>
+</head>
+<body>
+<div class="centered">-=- Chesstris -=-<br>
+Use arrows+space for tetris, and the mouse for chess. 
+<noscript style="color: red;">Enable Javascript to play the game.</noscript><br>
+<br><br></div>
+<table class="ma">
+	<tr>
+		<td id="game">
+			<div id="board">
+				If you see this, the board failed to load. I'm sorry.
+			</div>
+			<div id="settingsmenu" style="display: none;">
+				<div>Board width: <input type="number" id="bwidth" placeholder="10" min="4" value="10"></input></div>
+				<div>Board height: <input type="number" id="bheight" placeholder="14" min="4" value="14"></input></div>
+				<div onclick="closeSettings(true)">[ Save settings ]</div>
+				<div onclick="closeSettings(false)">[ Cancel ]</div>
+			</div>
+		</td>
+		<td id="stat">
+			<div onclick="runGame()">[start game]</div>
+			<div onclick="openSettings()">[settings]</div>
+			<div onclick="resetGame()">[reset]</div>
+			<div>next blocks:</div>
+			<div>add later</div>
+			<div>turn: <span id="whoseturn">black</span></div>
+			<div>fallrate: <span id="fallrate">1000</span>ms</div>
+			<div onclick="deselect()">[deselect]</div>
+		</td>
+	</tr>
+</table>
+<script>
+var pieces = [["♔","♕","♖","♗","♘","♙"], ["♚","♛","♜","♝","♞","♟"]];
+function b(d, x, y){
+	var a = [];
+	var p = -1;
+	for (let i = 0; i < x*y; i++){
+		if(i % x == 0){a.push([]); p+=1;}
+		a[p].push(d%2);
+		d >>= 1; //once in a millennium right shift assignment usage
+	}
+	return a; //this was SO unnecessary but its funny
+}
+var blocks = [
+	b(15, 2, 2), //O
+	b(58, 3, 3), //T
+	b(57, 3, 3), //R
+	b(60, 3, 3), //L
+	b(30, 3, 3), //S
+	b(51, 3, 3), //Z
+	b(8738, 4, 4)  //I
+]; //it would have taken less time and space to type this out manually...
+function rot(b){
+	var a = [];
+	var p = -1;
+	for (let i = 0; i < b.length * b[0].length; i++){
+		if(i % b.length == 0){a.push([]); p+=1;}
+		a[p].push(b[b.length - (i%b.length) - 1][p]);
+	}
+	return a;
+}
+var settings = {
+	width: 10,
+	height: 14,
+	pieceDistribution: distFromOdds([300, 0, 3, 15, 15, 15, 30, 0, 1, 5, 5, 5, 10]), //empty, yours (6), opponent's (6) (implicit zero at -1, cumulative!)
+	initialLineup: [
+		[0, 0, 0],
+		[0, 1, 0],
+		[0, 0, 0],
+	]
+};
+function distFromOdds(oddsList){ //13 elements
+	for (let i = 1; i < 13; i++){
+		oddsList[i] += oddsList[i-1];
+	}
+	return oddsList;
+}
+function resetGame(){
+	generateBoard();
+	currentBlock = [];
+	blockCache = [generateBlock(), generateBlock(), generateBlock(), generateBlock()];
+	blockCache[1] = otherPlayerify(blockCache[0]);
+	blockCache[3] = otherPlayerify(blockCache[2]);
+	currentPlayer = -1;
+	currentPhase = 1;
+	isBlockFalling = false;
+	hasSelected = false;
+	moveList = [];
+	offset = [0, 0];
+	fallrate = 1000;
+	isLineFull = false;
+	aqkdjhsiou = true;
+	clearTimeout(looper);
+}
+function openSettings(){
+	document.getElementById("board").style.display = "none";
+	document.getElementById("settingsmenu").style.display = "block";
+}
+function closeSettings(save){
+	document.getElementById("board").style.display = "block";
+	document.getElementById("settingsmenu").style.display = "none";
+	if (save){
+		settings.width = Number(bwidth.value);
+		settings.height = Number(bheight.value);
+	}
+}
+var boardMap = [];
+var currentTarget = [0, 0];
+function generateBoard(){
+	var boardString = "<table>";
+	var uboardMap = [];
+	for (let i = 0; i < settings.height; i++){
+		uboardMap.push([]);
+		boardString += "</tr>";
+		for (let j = 0; j < settings.width; j++){
+			boardString += `<td id="b${i}x${j}" class="square ${(i+j)%2 == 0 ? "ch" : ""}" onclick="handleChess(${i},${j})"></td>`;
+			uboardMap[i].push(-1);
+		}
+		boardString += "</tr>";
+	}
+	boardString += "</table>";
+	document.getElementById("board").innerHTML = boardString;
+	boardMap = uboardMap;
+	//populate with initial state
+	for (let i = 0; i < settings.initialLineup.length; i++){
+		for (let j = 0; j < settings.initialLineup[0].length; j++){
+			boardMap[settings.height + i - settings.initialLineup.length][j] = settings.initialLineup[i][j];
+			boardMap[settings.height + i - settings.initialLineup.length][settings.width - j - 1] = settings.initialLineup[i][j] == 0 ? 0 : (settings.initialLineup[i][j] + (settings.initialLineup[i][j] > 6 ? -6 : 6));
+		}
+	}
+}
+function generateBlock(){
+	var e = structuredClone(blocks[Math.floor(Math.random()*7)]);
+	for (let i = 0; i < e.length; i++){
+		for (let j = 0; j < e[0].length; j++){
+			if (e[i][j] == 1){ //populate with pieces
+				var r = settings.pieceDistribution[12] * Math.random();
+				e[i][j] = settings.pieceDistribution.findIndex((x) => x > r); //does this work now? i kinda forgot
+			}
+			else {
+				e[i][j] = -1;
+			}
+		}
+	}
+	return e;
+}
+function otherPlayerify(q){
+	var r = structuredClone(q); //i have no idea why this is necessary. i don't know anything about javascript. i feel like i am awakening ancient demons with every statement. i am scared. please help me.
+	for (let i = 0; i < q.length; i++){
+		for (let j = 0; j < q[0].length; j++){
+			if (q[i][j] > 0){
+				r[i][j] += q[i][j] > 6 ? -6 : 6;
+			}
+		}
+	}
+	return r;
+}
+var currentBlock = [];
+var blockCache = [generateBlock(), generateBlock(), generateBlock(), generateBlock()]; //we need this to show previews
+blockCache[1] = otherPlayerify(blockCache[0]);
+blockCache[3] = otherPlayerify(blockCache[2]);
+var currentPlayer = -1; //1 is white, -1 is black
+var currentPhase = 1; //1 is tetris, -1 is chess
+var isBlockFalling = false;
+var hasSelected = false;
+var moveList = [];
+var offset = [0, 0]; //(x, y) of current falling block's top left
+var fallrate = 1000; //ms between gravity steps
+var isLineFull = false;
+var aqkdjhsiou = true; //obfuscation XDD
+var looper = 42;
+var wKingExists = true;
+var bKingExists = true;
+function runGame(){
+	if (currentPhase == 1){
+		if (!isBlockFalling){ //we make a new block here
+			currentBlock = blockCache[0];
+			blockCache[0] = blockCache[1];
+			blockCache[1] = blockCache[2];
+			blockCache[2] = blockCache[3];
+			blockCache[3] = currentPlayer == -1 ? generateBlock() : otherPlayerify(blockCache[2]);
+			offset = [Math.floor(settings.width / 2) - 1, 0];
+			isBlockFalling = true;
+			for (let i = 0; i < currentBlock.length; i++){ //megre onto board
+				for (let j = 0; j < currentBlock[0].length; j++){
+					if(currentBlock[i][j] != -1 && boardMap[i+offset[1]][j+offset[0]] != -1){
+						alert(`${currentPlayer == 1 ? "white" : "black"} wins`);
+						resetGame();
+					}
+				}
+			}
+		}
+		if (doFall()){
+			currentPhase = -1; //we enter here when the piece lands
+			for (let i = 0; i < currentBlock.length; i++){ //megre onto board
+				for (let j = 0; j < currentBlock[0].length; j++){
+					if(currentBlock[i][j] != -1){
+						boardMap[i+offset[1]][j+offset[0]] = currentBlock[i][j];
+					}
+				}
+			}
+			currentBlock = [];
+			isBlockFalling = false;
+			for (let i = settings.height - 1; i >= 0; i--){ //line clears
+				if (boardMap[i].reduce((a, c) => {return a && (c > -1)}, true)){ //checks if line is full
+					for (let j = i; j > 0; j--){
+						boardMap[j] = structuredClone(boardMap[j-1]);
+					}
+					boardMap[0] = Array(settings.width).fill(-1);
+					i += 1;
+				}
+			}
+			wKingExists = false;
+			bKingExists = false;
+			for (q of boardMap){
+				wKingExists ||= q.includes(1);
+				bKingExists ||= q.includes(7);
+			}
+			if (wKingExists && !bKingExists) {alert("white wins"); resetGame();}
+			if (!wKingExists && bKingExists) {alert("black wins"); resetGame();}
+			if (!wKingExists && !bKingExists) {alert("draw"); resetGame();}
+		}
+		else {
+			looper = setTimeout(runGame, fallrate);
+		}
+	}
+	render();
+}
+function render(){
+	for (let i = 0; i < settings.height; i++){ //board
+		for (let j = 0; j < settings.width; j++){
+			drawTile(i, j, boardMap[i][j]);
+		}
+	}
+	for (let i = 0; i < currentBlock.length; i++){ //current block
+		for (let j = 0; j < currentBlock[0].length; j++){
+			if(currentBlock[i][j] != -1){
+				drawTile(i+offset[1], j+offset[0], currentBlock[i][j]);
+			}
+		}
+	}
+}
+function drawTile(x, y, piece){
+	var t = document.getElementById(`b${x}x${y}`);
+	if (piece != -1){
+		t.textContent = piece == 0 ? "" : pieces[Math.floor((piece-1) / 6)][(piece - 1) % 6]; //<-- this feels bad??
+		t.classList.add("tile");
+	}
+	else {
+		t.textContent = ""
+		t.classList.remove("tile");
+	}
+}
+function doFall(){
+	var landedFlag = false;
+	for (let i = 0; i < currentBlock.length; i++){
+		for (let j = 0; j < currentBlock[0].length; j++){
+			if (currentBlock[i][j] != -1 && (i + offset[1] == settings.height - 1 || boardMap[i + offset[1] + 1][j + offset[0]] != -1)){ //collison
+				landedFlag = true;
+			}
+		}
+	}
+	if (!landedFlag){
+		offset[1] += 1;
+	}
+	return landedFlag;
+}
+function moveLeft(){
+	var landedFlag = false;
+	for (let i = 0; i < currentBlock.length; i++){
+		for (let j = 0; j < currentBlock[0].length; j++){
+			if (currentBlock[i][j] != -1 && (j + offset[0] == 0 || boardMap[i + offset[1]][j + offset[0] - 1] != -1)){ //collison
+				landedFlag = true;
+			}
+		}
+	}
+	if (!landedFlag){
+		offset[0] -= 1;
+	}
+}
+function moveRight(){
+	var landedFlag = false;
+	for (let i = 0; i < currentBlock.length; i++){
+		for (let j = 0; j < currentBlock[0].length; j++){
+			if (currentBlock[i][j] != -1 && (j + offset[0] == settings.width || boardMap[i + offset[1]][j + offset[0] + 1] != -1)){ //collison
+				landedFlag = true;
+			}
+		}
+	}
+	if (!landedFlag){
+		offset[0] += 1;
+	}
+}
+function handleChess(x, y){
+	if (hasSelected){
+		attack(x, y);
+	}
+	else if(3 - 2*Math.ceil(boardMap[x][y] / 6) == currentPlayer){
+		currentTarget = [x, y];
+		moveList = determinePossibleMoves(x, y);
+		if (moveList.length != 0){
+			document.getElementById(`b${x}x${y}`).classList.add("current");
+			for (r of moveList){
+				document.getElementById(`b${r[0]}x${r[1]}`).classList.add("moves");
+			}
+			hasSelected = true;
+		}
+	}
+}
+function deselect(){
+	hasSelected = false;
+	document.getElementById(`b${currentTarget[0]}x${currentTarget[1]}`).classList.remove("current");
+	for (let i = 0; i < settings.height; i++){
+		for (let j = 0; j < settings.width; j++){
+			document.getElementById(`b${i}x${j}`).classList.remove("moves");
+		}
+	}
+	render();
+}
+function determinePossibleMoves(x, y){ //takes a tile
+	if (currentPhase == -1){
+		switch (boardMap[x][y] % 6){ //♔,♕,♖,♗,♘,♙
+			case 1:
+				return checkAvailabilityByOffset([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]], [x, y], Math.ceil(boardMap[x][y] / 6));
+			case 2:
+				return checkAvailabilityByLines([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]], [x, y], Math.ceil(boardMap[x][y] / 6));
+			case 3:
+				return checkAvailabilityByLines([[1, 0], [0, 1], [-1, 0], [0, -1]], [x, y], Math.ceil(boardMap[x][y] / 6));
+			case 4:
+				return checkAvailabilityByLines([[1, 1], [-1, 1], [-1, -1], [1, -1]], [x, y], Math.ceil(boardMap[x][y] / 6));
+			case 5:
+				return checkAvailabilityByOffset([[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]], [x, y], Math.ceil(boardMap[x][y] / 6));
+			case 0:
+				return NcheckAvailabilityByOffset([[-1, 0]], [x, y], Math.ceil(boardMap[x][y] / 6)).concat(CcheckAvailabilityByOffset([[-1, 1], [-1, -1]], [x, y], Math.ceil(boardMap[x][y] / 6)));
+		}
+	}
+	else {
+		return [];
+	}
+}
+function checkAvailabilityByOffset(olist, pos, col){
+	var result = [];
+	for (o of olist){
+		if (pos[0] + o[0] >= 0 && pos[0] + o[0] < settings.height && pos[1] + o[1] >= 0 && pos[1] + o[1] < settings.width && boardMap[pos[0] + o[0]][pos[1] + o[1]] > -1 && Math.ceil(boardMap[pos[0] + o[0]][pos[1] + o[1]] / 6) != col){
+			result.push([pos[0] + o[0], pos[1] + o[1]]);
+		}
+	}
+	return result;
+}
+function CcheckAvailabilityByOffset(olist, pos, col){ //capture only
+	var result = [];
+	for (o of olist){
+		if (pos[0] + o[0] >= 0 && pos[0] + o[0] < settings.height && pos[1] + o[1] >= 0 && pos[1] + o[1] < settings.width && boardMap[pos[0] + o[0]][pos[1] + o[1]] > 0 && Math.ceil(boardMap[pos[0] + o[0]][pos[1] + o[1]] / 6) != col){
+			result.push([pos[0] + o[0], pos[1] + o[1]]);
+		}
+	}
+	return result;
+}
+function NcheckAvailabilityByOffset(olist, pos, col){ //no capture
+	var result = [];
+	for (o of olist){
+		if (pos[0] + o[0] >= 0 && pos[0] + o[0] < settings.height && pos[1] + o[1] >= 0 && pos[1] + o[1] < settings.width && boardMap[pos[0] + o[0]][pos[1] + o[1]] == 0){
+			result.push([pos[0] + o[0], pos[1] + o[1]]);
+		}
+	}
+	return result;
+}		//these three could be merged
+
+function checkAvailabilityByLines(olist, pos, col){
+	var result = [];
+	var temphaha = structuredClone(olist);
+	var isAlive = olist.fill(true); //terrible workaround
+	olist = temphaha;
+	var headsLeft = Number(olist.length); //[Number] is needed so it isn't linked to the length of the list
+	var distance = 1;
+	var i = 0;
+	while (headsLeft > 0 && distance < 100){
+		i = 0;
+		for (o of olist){
+			if (isAlive[i] && pos[0] + o[0]*distance >= 0 && pos[0] + o[0]*distance < settings.height && pos[1] + o[1]*distance >= 0 && pos[1] + o[1]*distance < settings.width && boardMap[pos[0] + o[0]*distance][pos[1] + o[1]*distance] > -1 && Math.ceil(boardMap[pos[0] + o[0]*distance][pos[1] + o[1]*distance] / 6) != col){
+				result.push([pos[0] + o[0]*distance, pos[1] + o[1]*distance]);
+				if (boardMap[pos[0] + o[0]*distance][pos[1] + o[1]*distance] > 0){
+					headsLeft -= 1;
+					isAlive[i] = false;
+				}
+			}
+			else {
+				if (isAlive[i]){
+					headsLeft -= 1;
+				}
+				isAlive[i] = false;
+			}
+			i += 1;
+		}
+		distance += 1;
+	}
+	return result;
+}
+var previousMovedValue = 0;
+var previousAttackedValue = 0;
+function attack(x, y){
+	if (boardMap[x][y] == 1 || boardMap[x][y] == 7){
+		alert("you can't attack the king directly (i have to put this here because of bad code, hopefully it'll be fixed soon)");
+		return;
+	}
+	if (moveList.map((a) => a.join(",")).includes(`${x},${y}`)){ //you can't compare arrays directly
+		previousAttackedValue = boardMap[x][y];
+		boardMap[x][y] = boardMap[currentTarget[0]][currentTarget[1]];
+		previousMovedValue = boardMap[currentTarget[0]][currentTarget[1]];
+		boardMap[currentTarget[0]][currentTarget[1]] = 0; //GO AN DFUCKING KILL YOURSELF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!GXS	EU8WQ HZCD132KL.É 8,DKZLQOPCU,KL.
+		if (checkFor(currentPlayer, "check")){ //you cannot move into check
+			hasSelected = true;
+			boardMap[x][y] = previousAttackedValue;
+			boardMap[currentTarget[0]][currentTarget[1]] = previousMovedValue;
+			if (checkFor(-currentPlayer, "mate")){
+				alert(`${currentPlayer == -1 ? "white" : "black"} wins`);
+				resetGame();
+				return;
+			}
+			alert("this leaves your king in check you can't do that");
+			return;
+		}
+		document.getElementById(`b${currentTarget[0]}x${currentTarget[1]}`).classList.remove("current");
+		for (let i = 0; i < settings.height; i++){
+			for (let j = 0; j < settings.width; j++){
+				document.getElementById(`b${i}x${j}`).classList.remove("moves");
+			}
+		}
+		render();
+		currentPhase = 1;
+		currentPlayer *= -1;
+		document.getElementById("whoseturn").textContent = currentPlayer == 1 ? "white" : "black";
+		hasSelected = false;
+		if (checkFor(currentPlayer, "check") && checkFor(currentPlayer, "mate")){
+			alert(`${currentPlayer == 1 ? "white" : "black"} wins`);
+			resetGame();
+			return;
+		}
+		runGame();
+	}
+}
+var inCheck = false;
+function checkFor(color, thing){ //1 is white, -1 is black // yeah iuts set up in a kinda stupid way
+	var enemyMoves = [];
+	var kingMoves = [];
+	for (let i = 0; i < settings.height; i++){
+		for (let j = 0; j < settings.width; j++){
+			if (Math.ceil(boardMap[i][j] / 6)*(-2)+3 == -color){ // 1;2 -> 1;-1
+				enemyMoves = enemyMoves.concat(determinePossibleMoves(i, j));
+			}
+			if (boardMap[i][j] == -3*color + 4){ //1 or 7
+				kingPosition = `${i},${j}`;
+				kingMoves = determinePossibleMoves(i, j);
+			}
+		}
+	}
+	enemyMoves = enemyMoves.map((a) => a.join(","));
+	kingMoves = kingMoves.map((a) => a.join(","));
+	if (thing == "check"){
+		return enemyMoves.includes(kingPosition);
+	}
+	if (thing == "mate"){
+		return !(kingMoves.map((a) => enemyMoves.includes(a)).includes(true));
+	}
+}
+//left: check/mate, reward for line clears(?),  
+generateBoard();
+document.addEventListener("keydown", (k) => {
+	switch (k.key){
+		case "ArrowRight":
+		case "d":
+		case "D":
+			moveRight();
+			break;
+		case "ArrowLeft":
+		case "a":
+		case "A":
+			moveLeft();
+			break;
+		case "ArrowDown":
+		case "s":
+		case "S":
+			doFall();
+			break;
+		case "ArrowUp":
+		case "w":
+		case "W":
+			currentBlock = rot(currentBlock);
+			for (let i = 0; i < currentBlock.length; i++){
+				for (let j = 0; j < currentBlock[0].length; j++){
+					if ((boardMap[i + offset[1]][j + offset[0]] != -1 || i + offset[1] >= settings.height || j + offset[0] < 0 || j + offset[0] >= settings.width) && aqkdjhsiou) {
+						currentBlock = rot(rot(rot(currentBlock))); //undoes the rotation
+						aqkdjhsiou = false;
+					}
+				}
+			}
+			aqkdjhsiou = true;
+			break;
+		case " ":
+			while (!doFall()) {}
+		default:
+			break;
+	}
+	render();
+})
+</script>
+</body>
+</html>
