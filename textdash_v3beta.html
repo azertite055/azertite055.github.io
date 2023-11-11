@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8" />
+    <title>Text Dash</title>
+<style>
+    .disable-select {
+    -webkit-user-select: none;  
+    -moz-user-select: none;    
+    -ms-user-select: none;      
+    user-select: none;
+    }
+    body {
+        background-color: white;
+        font-family: Consolas, courier, monospace;
+        font-size: 16px;
+    }
+    .mid {
+        text-align: center;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    #container {
+        position: relative; /* needed to make absolute positioning work inside (it positions from the closest positioned ancestor) */
+        border: 1px solid black;
+        width: max-content;
+    }
+    #game {
+        text-align: left;
+    }
+    #triggerrow {
+        display: block;
+        border: 1px solid black;
+        width: max-content;
+    }
+    .textlayer {
+        display: inline-block;
+        width: 0;
+        height: 0;
+    }
+    #gameBackground {
+        display: block;
+        position: absolute;
+        z-index: -10;
+        background: white;
+        isolation: isolate;
+        width: max-content;
+    }
+    #gameForeground {
+        display: block;
+        position: absolute;
+        z-index: 10;
+        background: transparent;
+        width: max-content;
+    }
+    .gametile {
+        display: inline-block;
+        background-color: transparent;
+        z-index: 0;
+    }
+    #editorInterface {
+        position: absolute;
+        width: max-content;
+    }
+    .editortile {
+        display: inline-block;
+        background-color: transparent;
+        color: transparent;
+        position: relative;
+        z-index: 9999;
+    }
+    .editortile, #triggerrow span {
+        outline: 1px solid rgb(0 0 0 / 0.07);
+    }
+    .editortile:hover, #triggerrow span:hover{
+        outline: 2px solid rgb(0 0 0 / 0.5);
+    }
+    .dialog {
+        text-align: center;
+        border: 4px double black;
+        display: block;
+        position: relative;
+        width: 32px;
+        height: 32px;
+    }
+    .dialogsymbol {
+        display: inline;
+        margin: auto;
+        vertical-align: middle;
+    }
+    .clickable:hover {
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    table {
+        border: 1px solid black;
+        margin: auto;
+    }
+    tr {
+        margin: 0;
+    }
+    td {
+        border: 1px solid black;
+        margin: 1px;
+    }
+    .scontainer {
+        display: block;
+    }
+    .selector {
+        position: relative;
+        border: 2px solid black;
+        padding: 1px 1px 1px 2px;
+        display: flow-root;
+        width: fit-content;
+    }
+    .expander {
+        display: block;
+        text-align: center;
+        margin-left: 2px;
+        border: 2px solid black;
+        cursor: pointer;
+        float: right;
+        width: 19px;
+    }
+    .expander:hover {
+        color: white;
+        background-color: black;
+    }
+    .selectionoptions {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        max-height: 200px;
+        overflow: scroll;
+        top: 24px;
+        z-index: 10;
+        background-color: white;
+        border: 2px solid black;
+        width: max-content;
+        min-width: 30px;
+        scrollbar-color: black white;
+    }
+    .selectionoption {
+        border: 1px solid black;
+        padding: 1px;
+        cursor: pointer;
+    }
+    .selectionoption:hover {
+        color: white;
+        background-color: black;
+    }
+    .kys { /*trick to force certain elements to be 'inline' (this class is to be applied to tables)*/
+        margin: auto;
+        padding: 0;
+        border: 0;
+        vertical-align: middle;
+    }
+    input {
+        background-color: white;
+        font-family: Consolas, courier, monospace;
+        font-size: 16px;
+        border: 2px solid black;
+        margin: 2px;
+    }
+    input:focus {
+        color: white;
+        background-color: black;
+    }
+    #charcontainer {
+        border: 0;
+    }
+    #charcontainer tr {
+        outline: 2px solid black;
+    }
+    #charcontainer tr td {
+        border: 0;
+    }
+    #tvcontainer {
+        display: block;
+        min-height: 40px;
+        width: max-content;
+        min-width: 200px;
+        border: 1px solid black;
+    }
+    #edittable{
+        margin: 10px auto; 
+    }
+    #edittable tr td {
+        padding: 2px;
+    }
+</style>
+</head>
+<body>
+    <div class="mid">-=- Text Dash -=-</div>
+    <div class="mid">Click or press space to jump.</div><br>
+
+    <div class="mid" id="header">
+        <span class="clickable" onclick="switchTab('main')">Main levels</span> | 
+        <span class="clickable" onclick="switchTab('custom')">Custom levels</span> | 
+        <span class="clickable" onclick="switchTab('edit')">Editor</span> | 
+        <span class="clickable" onclick="switchTab('settings')">Settings</span>
+    </div><br>
+
+    <div class="mid" id="main">
+        <div id="mainheader">Level 1</div>
+    </div>
+
+    <div class="mid" id="custom">
+        <div id="customheader">Slot number: 0</div>
+    </div>
+
+    <div class="mid" id="edit">
+        <div id="editheader">Slot number: 0</div>
+        <div id="editheader2">Set level properties...</div>
+        <div>
+            <span onmousedown="editorStates.velocity = -1000;" onmouseup="editorStates.velocity = 0;">&lt;&lt;</span>&nbsp;
+            <span onmousedown="editorStates.velocity = -100;" onmouseup="editorStates.velocity = 0;">&lt;</span>&nbsp;
+            <span>0/100</span>&nbsp;
+            <span onmousedown="editorStates.velocity = 100;" onmouseup="editorStates.velocity = 0;">&gt;</span>&nbsp;
+            <span onmousedown="editorStates.velocity = 1000;" onmouseup="editorStates.velocity = 0;">&gt;&gt;</span>
+        </div>
+    </div>
+
+    <div class="mid" id="settings">
+        <div id="settingsheader">Gameplay | Editor | Saving | Help</div>
+    </div>
+
+    <div id="container" class="mid">
+        <div id="game" class="disable-select"></div>
+    </div>
+
+    <div id="practice" class="mid">
+        <span id="practiceenter">Enter practic mode</span>
+        <span id="practiceactive" style="display: none;">
+            Exit prctice mode<br>
+            Place checkpoint (x) | Remove checkpoint (c)
+        </span>
+    </div>
+
+    <div id="editorunder">
+        <div class="mid">- Triggers -</div>
+        <div id="triggerrow" class="mid disable-select"></div>
+        <div id="triggeroptions" class="mid">
+            <table class="kys"><tr class="kys"><td class="kys">Target:</td>
+                <td class="kys"><span id="target1"></span></td>
+                <td class="kys">&nbsp;| Property:</td>
+                <td class="kys"><span id="target2"></span> </td></tr></table>
+            <div id="tvcontainer" class="mid"><span id="tvalue" style="display: none; margin: 5px;">
+                <table class="kys"><tr class="kys"><td class="kys">Value: </td><td class="kys">
+                    <span id="tvalue-color" style="display: none;">
+                        <input type="color" name="tvcolor" id="tvcolor"/> Alpha <input type="number" name="tvcolora" id="tvcolora" min="0" max="1" step="0.01" size="6"/>
+                    </span>
+                    <span id="tvalue-number" style="display: none;">
+                        <input type="number" name="tvnumber" id="tvnumber" step="1" size="7"/>
+                    </span>
+                    <span id="tvalue-numbera" style="display: none;">
+                        <input type="number" name="tvnumbera" id="tvnumbera" min="0" max="360" step="1" size="6"/>
+                    </span>
+                    <span id="tvalue-numberp" style="display: none;">
+                        <input type="number" name="tvnumberp" id="tvnumberp" min="0" max="1" step="100" size="6"/>
+                    </span>
+                    <span id="tvalue-number1" style="display: none;">
+                        <input type="number" name="tvnumber1" id="tvnumber1" min="0" max="1" step="0.01" size="6"/>
+                    </span>
+                    <span id="tvalue-blend" style="display: none;">
+                        <span id="tvblendx"></span>
+                    </span>
+                </td>
+                <td class="kys">
+                    &nbsp;| Duration: <input type="number" name="tlength" id="tlength" step="1" min="1" size="10"/> ms |&nbsp;
+                </td>
+                <td class="kys">
+                    Offset: <input type="number" name="toffset" id="toffset" step="1" min="1" size="10"/> ms |&nbsp;
+                </td>
+                <td class="kys">
+                    <span onclick="addTrigger()" class="clickable">Submit</span>
+                </td>
+                </tr></table>
+            </span></div>
+        </div>
+        <table id="edittable">
+            <tr>
+                <td id="editmain">
+                    <div class="mid">- Tools -</div>
+                    <div>Select</div>
+                    <div>Playtest</div>
+                </td>
+                <td id="chardialog">
+                    <div class="mid">- Tile editor -</div>
+                    <div class="mid"><span onclick="goToTileRowPage(tileRowPage-1);">&lt;&lt;</span> | <span onclick="goToTileRowPage(tileRowPage+1);">&gt;&gt;</span></div>
+                    <table id="charcontainer"></table>
+                    <div class="mid">
+                        <span class="clickable" onclick="addNewTileRow()">Add&nbsp;character</span> | 
+                        <span class="clickable" onclick="removeTileRow()">Remove&nbsp;character</span>
+                    </div>
+                    <div class="mid">Start of oscillation:<input type="number" name="tiletimebase" id="tiletimebase" min="0" step="1" size="9" onchange="editorStates.tempTile.timeBase=Number(tiletimebase.value)"/></div>
+                    <div class="mid clickable" onclick="editorStates.whatToAdd[0][0]=editorStates.tempTile">Use tile</div>
+                </td>
+                <td id="chartable">
+                    <div class="mid">- Character table -<br>
+                    Click on a character to copy it.<br>
+                    Characters with special gameplay effects are outlined.<br>
+                    &lt;&lt; 0000-003F &gt;&gt;</div>
+                    <div>Not added yet LOLOL</div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <input type="text" id="tvblend" name="tvblend" style="display: none;"/><!--don't worry about this-->
+<script>
+var gameWidth = 25;
+var gameHeight = 10;
+var tileString = "";
+var colors = [];
+for (let i = 0; i < 10; i++){
+    colors.push({rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"});
+}
+var bgColor = {c1: [255, 255, 255, 1], c2: [255, 255, 255, 1], gradAngle: 0, grad1: 0, grad2: 1};
+var fgColor = {c1: [255, 255, 255, 1], c2: [255, 255, 255, 1], gradAngle: 0, grad1: 0, grad2: 1, blend: "normal"};
+
+///////////////////////////////
+//       player stuff        //
+///////////////////////////////
+
+var player1 = {
+    y: 3, ySub: 0, vy: 0,
+    mode: 0, gravity: 1,
+    bufferCheck: true,
+    keyHeld: false
+};
+var player2 = {
+    y: 3, ySub: 0, vy: 0, //x and y values have subunits of 1/1200, the actual position is always rounded down
+    mode: 0, gravity: -1,
+    bufferCheck: true,
+    keyHeld: false
+};
+
+var commonStates = {
+    height: 10, width: 100,
+    x: 0, speed: 1, xSub: 0, frame: 0, playerColumn: 5,
+    colorMain: [0, 0, 0, 1], colorGlow: [0, 0, 0, 0]
+}
+var speedValues = [10, 13, 16, 20, 24];
+var playerIcons = ["X", "O", ">", "M", "U", "Đ"] //cube, ball, wave, spider, ufo, ???
+var gravityValues = [6, 6, 0, 6, 6, 6];
+
+var renderOffset = 0; //at the beginning and the end of a level, the player needs to slide in/out without the camera moving, this variable is used in that case 
+
+/*  -- TILE DEFINITION --
+    chars: string[n]            display characters in order of appearance
+    times: int[n]               time each character is visible in ms
+    timeBase: int               starting x position for oscillation
+    behavior: string[n]         how each character intercats with the player (solid, semisolid, kill, none, default)
+    colorGroup: int(1~9)[n]     number of the color to use for each character
+    (you should probably turn this into a class)
+    (classes do nothing XD you'll just pack stuff into objects and you know it)
+    *for special objects to have their intended effect, behavior must be set to default
+*/
+
+
+/* -- TRIGGER OBJECT DEFINITION --
+    target1: c1, c2, ..., c9, bg, fg, common
+    target2: whatever that object may contain
+    offset: delay before the transition (ms)
+    time: duration of transition in frames (ms)
+    trigger object:
+    {(target1 as keys)]: {(target2 as keys): [(sparse array indexed by xpos) ...,[value, offset, time],...]}}
+    + add a macro into the editor for creating multiple triggers at once that set the specified target1's properties to those defined in the style dialog
+*/
+var testTile = {
+    chars: [],
+    times: [],
+    timeBase: 0,
+    behavior: [],
+    colorGroup: []
+};
+var emptyTriggerObject = {
+    c1: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c2: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c3: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c4: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c5: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c6: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c7: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c8: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c9: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    bg: {c1: [], c2: [], gradAngle: [], grad1: [], grad2: []},
+    fg: {c1: [], c2: [], gradAngle: [], grad1: [], grad2: [], blend: []},
+    common: {playerColumn: []}
+}; //this may look bad,
+var defaultValues = {
+    c1: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c2: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c3: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c4: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c5: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c6: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c7: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c8: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c9: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    bg: {c1: [255, 255, 255, 1], c2: [255, 255, 255, 1], gradAngle: 0, grad1: 0, grad2: 100},
+    fg: {c1: [255, 255, 255, 0], c2: [255, 255, 255, 0], gradAngle: 0, grad1: 0, grad2: 100, blend: "normal"},
+    common: {playerColumn: 5}
+};
+var currentValues = structuredClone(defaultValues);
+var typeMap = {
+    rgbaMain: "color",
+    rgbaGlow: "color",
+    c1: "color",
+    c2: "color",
+    glowRadius: "number",
+    glowOffsetX: "number",
+    glowOffsetY: "number",
+    playerColumn: "numberp",
+    gradAngle: "numbera",
+    grad1: "number1",
+    grad2: "number1",
+    blend: "blend"
+}
+function arrayToRGB(a){
+    return `rgb(${a[0]} ${a[1]} ${a[2]} / ${a[3]})`
+}
+function cton(c, a){ //color formatters 
+	var d = [0, 0, 0];
+	for (i = 0; i < 3; i++){
+		d[i] = Number("0x" + c.substring(2*i+1,2*i+3));
+	}
+    if (typeof a === "number") {
+        d.push(a); //we add alpha if it exists
+    }
+	return d;
+}
+function ntoc(n){ //destroys alpha cannel (it's only used for setting color lickers anyway)
+    if (n.length = 4) {n.pop;}
+	var o = "#";
+	for (i = 0; i < 3; i++){
+		if (n[i] == 0){
+			o += "00";
+		}
+		else if (n[i] < 16){
+			o += "0" + n[i].toString(16);
+		}
+		else{
+			o += n[i].toString(16);
+		}
+	}
+	return o;
+}
+var level = { //this will always hold the level being played/edited, we load them into this from a JSON file
+    tiles: Array(10),
+    triggers: structuredClone(emptyTriggerObject),
+    width: 100,
+    height: 10,
+    initialState: [],
+    speedChanges: [] //we want to keep track of this seperately to make trigger claculations easier [position, speed]
+    //doing this also means that we have to disallow speed changes in mulistate tiles and also assume that every speed change is necessary
+};
+for (let i = 0; i < level.height; i++) {
+    level.tiles[i] = new Array(100); //grr why does this have to be done
+}
+function clamp(a, min, max){ //goes throuh arrays recusively (???????)
+    if (Array.isArray(a)){
+        for (let i = 0; i < a.length; i++){
+            a[i] = clamp(a[i], min, max);
+        }
+        return a
+    }
+    return Math.min(Math.max(a, min), max);
+}
+function exists(tile){
+    if (!tile){return false}
+    if (!(Object.keys(tile).includes("timeBase") && Object.keys(tile).includes("colorGroup") && Object.keys(tile).includes("behavior") && Object.keys(tile).includes("times") && Object.keys(tile).includes("chars"))){return false;}
+    return tile.colorGroup.length != 0 && tile.chars.length != 0 && tile.times.length != 0 && tile.behavior.length != 0;
+}
+///////////////////////////////
+//        rendering          //
+///////////////////////////////
+function computeTriggerValue(target1, target2, x, subx, frame){
+    frame = frame || posToFrame(x, subx);
+    var currentTriggers = level.triggers[target1][target2];
+    var nextIndex = currentTriggers.findLastIndex((e,i) => Array.isArray(e) && (i <= x));
+    //console.log(nextIndex);
+    var nextTrigger = nextIndex == -1 ? [defaultValues[target1][target2],1,0] : currentTriggers[nextIndex]; //value, duration, offset
+    var currentIndex = currentTriggers.findLastIndex((e,i) => Array.isArray(e) && (i < nextIndex)); //this will be -1 if the trigger doesn't exist, in that cas we will use default values
+    var currentTrigger = currentIndex == -1 ? [defaultValues[target1][target2],1,0] : currentTriggers[currentIndex];
+    var interpolationValue = clamp((frame - posToFrame(nextIndex, 0) - nextTrigger[2])/nextTrigger[1], 0, 1);
+    if (typeMap[target2] == "blend") {return nextTrigger[0];}
+    if (typeMap[target2] == "color") {return Array(4).fill(1).map((a, b) => interpolationValue*nextTrigger[0][b] + (1-interpolationValue)*currentTrigger[0][b])}
+    //it's a regular number otherwise
+    return interpolationValue*nextTrigger[0] + (1-interpolationValue)*currentTrigger[0];
+}
+function stateAt(tile, frame){
+    if (!tile || !tile.times) {return}
+    if (tile.times.length == 1) {return {char: tile.chars[0], behavior: tile.behavior[0], colorGroup: tile.colorGroup[0]}}
+    frame -= posToFrame(tile.timeBase, 0);
+    frame = (9999999 + frame) % tile.times.reduce((a, b) => a + b); //shitty fix for the shitty modulo of js
+    var index = 0;
+    var soFar = 0;
+    while (soFar < frame){
+        soFar += tile.times[index];
+        index++;
+    }
+    return {char: tile.chars[index-1], behavior: tile.behavior[index-1], colorGroup: tile.colorGroup[index-1]};
+}
+function render(){
+    //this bit is only run when you're in the editor -- it is enough to update editor stuff on render
+    if (currentTab == "edit"){
+        editorStates.editorSubpixel += editorStates.velocity;
+        if (editorStates.editorSubpixel > 1200){editorStates.editorSubpixel -= 1200; editorStates.x += 1}
+        if (editorStates.editorSubpixel < 0 && editorStates.x != 0){editorStates.editorSubpixel += 1200; editorStates.x -= 1}
+    } 
+    renderOffset = Math.max(commonStates.x - commonStates.playerColumn, 0);
+    renderOffset = Math.min(renderOffset, level.width - gameWidth + commonStates.playerColumn - 1); //the -1 might not be needed, i just left like it -- check this later
+    if (currentTab == "edit"){
+        renderOffset = editorStates.x;
+    }
+    var renderFrame = currentTab == "edit" ? posToFrame(editorStates.x, editorStates.editorSubpixel) : commonStates.frame;
+    //apply trigger effects (base off of frame number)
+    for (var a of Object.keys(emptyTriggerObject)){
+        for (var b of Object.keys(emptyTriggerObject[a])){
+            currentValues[a][b] = computeTriggerValue(a, b, renderOffset, currentTab == "edit" ? 0 : commonStates.xSub, renderFrame); //< 0% chance of working
+        }
+    }
+    //render tiles
+    for (let i = 0; i < gameHeight; i++){
+        for (let j = 0; j < gameWidth; j++){
+            if (exists(level.tiles[i][j+renderOffset])){
+                var currentTile = stateAt(level.tiles[i][j+renderOffset], renderFrame);
+                var currentElement = document.getElementById(`${i}x${j}`);
+                var currentColor = currentValues[`c${currentTile.colorGroup}`];
+                currentElement.textContent = currentTile.char;
+                currentElement.style.color = arrayToRGB(currentColor.rgbaMain);
+                currentElement.style.textShadow = `${currentColor.glowOffsetX}px ${currentColor.glowOffsetY}px ${currentColor.glowRadius}px ${arrayToRGB(currentColor.rgbaGlow)}`;
+                currentElement.style.mixBlendMode = currentColor.blend;
+            }
+            else {
+                document.getElementById(`${i}x${j}`).textContent = "\xa0"; //regular spaces may disappear so we use a non-breaking one instead to be sure
+            }
+        }
+    }
+    //render trigger row (TBA display values)
+    if (currentTab == "edit"){
+        for (let i = 0; i < gameWidth; i++){
+            document.getElementById(`t${i}`).textContent = !!level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][i+renderOffset] ? "O" : "\xa0";
+        }
+    }
+    //render bg
+    var element = document.getElementById("gameBackground");
+    var values = currentValues.bg;
+    element.style.backgroundImage = `linear-gradient(${values.gradAngle}deg, ${arrayToRGB(values.c1)} ${values.grad1}%, ${arrayToRGB(values.c2)} ${values.grad2}%)`;
+    element = document.getElementById("gameForeground");
+    values = currentValues.fg;
+    element.style.backgroundImage = `linear-gradient(${values.gradAngle}deg, ${arrayToRGB(values.c1)} ${values.grad1}%, ${arrayToRGB(values.c2)} ${values.grad2}%)`;
+    element.style.mixBlendMode = values.blend;
+    window.requestAnimationFrame(render);
+}
+function physicsStep(pl){ //takes a player object (to allow for duals potentially)
+    var vyTemp = pl.vy += gravityValues[pl.mode]; //helpful constructs
+    var currentTile = level.tiles[pl.y][commonStates.x];
+    var neighboringTiles = []; 
+    for (let i = -1; i < 2; i++){
+        for (let j = -1; j < 2; j++){
+            if (level.tiles[pl.y + i][commonStates.x + j]) {neighboringTiles.push(level.tiles[pl.y + i][commonStates.x + j])}
+        }
+    }
+    //collisions
+    if (level.tiles[pl.y + pl.gravity][commonStates.x].behavior = "solid" && pl.ySub < 75){
+        vyTemp = 0;
+        pl.ySub = 0;
+    }
+
+    pl.vy = vyTemp; //calculating player velocity and position
+    pl.ySub += pl.vy;
+    if (pl.ySub > 1200) {pl.ySub -= 1200; pl.y += 1}
+    if (pl.ySub < 0) {pl.ySub += 1200; pl.y -= 1}
+    commonStates.xSub += speedValues[pl.speed];
+    if (commonStates.xSub > 1200) {commonStates.xSub -= 1200; commonStates.x += 1}
+    if (commonStates.xSub < 0) {commonStates.xSub += 1200; commonStates.x -= 1}
+    frame += 1;
+}
+
+///////////////////////////////
+//          editor           //
+///////////////////////////////
+
+var editorStates = {
+    currentLevel: 0,
+    x: 0,
+    editorSubpixel: 0,
+    velocity: 0,
+    mode: "add", //add, select,...?
+    colorDialogTarget: "undefined",
+    tempColor: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    tempTile: structuredClone(testTile),
+    tempTrigger: {target1: "c1", target2: "rgbaMain", value: null, offset: 0, duration: 0},
+    triggerPosition: 0,
+    numberDialogState: {value: 0, min: 0, max: 1, integer: false},
+    whatToAdd: [[{}]], //2d tile array
+    selection: [[0, 0], [0, 0]], //top left x,y; bottom right x,y
+    startPosData: {} //player object
+}
+function posToFrame(x, subx){ //only used in editor previews ugh guys please appreciate this
+    if (x < 0){return 0} //needed due to how triggers are calculated
+    var result = 0;
+    subx += x * 1200 //convert to pure subpixles
+    var thisTriggerDistance = 42; //if the remaining subx is less than this we know that we finish before the next speed change
+    if (level.speedChanges.length == 0) {
+        return Math.floor(subx / speedValues[1]) //special case for a level with no speed changes
+    } 
+    else {
+        thisTriggerDistance = (level.speedChanges[0][0]-1) * 1200;
+        if (subx < thisTriggerDistance){
+            return Math.floor(subx / speedValues[1]);
+        }
+        else {
+            result = thisTriggerDistance
+            subx -= thisTriggerDistance / speedValues[1];
+        }
+    }
+    for (let i = 0; i < level.speedChanges.length-1; i++){
+        thisTriggerDistance = level.speedChanges[i+1][0] - level.speedChanges[i][0];
+        thisTriggerDistance *= 1200; //code seperated for clarity
+        var currentSpeed = speedValues[level.speedChanges[i][1]];
+        if (subx < thisTriggerDistance){
+            result += Math.floor(subx / currentSpeed);
+            return result;
+        }
+        else {
+            result += thisTriggerDistance
+            subx -= thisTriggerDistance / currentSpeed;
+        }
+    }
+    result += Math.floor(subx / speedValues[level.speedChanges[level.speedChanges.length][1]]);
+    return result;
+}
+function editLoop(){
+    //stuff related to editor
+    render();
+}
+function exportLevel(){
+    return JSON.stringify(level);
+}
+function importLevel(data){
+    level = JSON.parse(data);
+}
+//requestanimationframe timing, there is no need for 1ms loops, we can do everything on frame draw
+function addTiles(y, x){
+    for (let i = 0; i < editorStates.whatToAdd.length; i++){
+        for (let j = 0; j < editorStates.whatToAdd[0].length; j++){
+            if (y+j >= 0 && x+i < level.tiles[0].length){
+                level.tiles[y+j][x+i] = structuredClone(editorStates.whatToAdd[j][i]); //just making sure,..
+            }
+        }
+    }
+}
+
+///////////////////////////////
+//     html constructors     //
+///////////////////////////////
+function makeFiller(){
+    var q = ""
+    for (let i = 0; i < gameWidth; i++){q += "&nbsp;"}
+    for (let i = 0; i < gameHeight; i++){q += "<br>"}
+    return q;
+}
+tileString += `<span id="gameBackground">${makeFiller()}</span><span id="gameForeground">${makeFiller()}</span>`;
+tileString += "<span id='editorInterface'>";
+for (let i = 0; i < gameHeight; i++){
+    for (let j = 0; j < gameWidth; j++){
+        tileString += `<span id="e${i}x${j}" class="editortile" onmouseenter="tileHoverHandler(${i},${j},false)" onclick="tileHoverHandler(${i},${j},true)">&nbsp;</span>`
+    }
+    tileString += "<br>"
+}
+tileString += "</span>"
+tileString += "<span id='gameInterface'>";
+for (let i = 0; i < gameHeight; i++){
+    for (let j = 0; j < gameWidth; j++){
+        tileString += `<span id="${i}x${j}" class="gametile">&nbsp;</span>`
+    }
+    tileString += "<br>"
+}
+tileString += "</span>"
+document.getElementById("game").innerHTML = tileString;
+
+var currentTab = "Uhhh...."
+var tabs = {
+    main: ["main", "container", "practice"],
+    custom: ["custom", "container", "practice"],
+    edit: ["edit", "container", "editorunder", "editorInterface"],
+    settings: ["settings"]
+};
+var everyTab = ["main", "container", "custom", "practice", "edit", "editorunder", "settings", "editorInterface"]; //questionable
+function switchTab(tabname){
+    document.getElementById("game").classList.remove(currentTab);
+    document.getElementById("game").classList.add(tabname);
+    for (t of everyTab){
+        document.getElementById(t).style.display = tabs[tabname].includes(t) ? "block" : "none";
+    }
+    currentTab = tabname;
+}
+switchTab("main");
+var selections = {}
+function buildSelector(name, target, options, otherfn){ //otherfn is called when an option is selected (supply as string)
+    selections[name] = options[0];
+    document.getElementById(target).classList.add("selector");
+    var result = `<span id="${name}-text">${options[0]}</span><span class="expander" onclick="document.getElementById('${name}-options').style.display='flex'">+</span>
+                <span id="${name}-options" class="selectionoptions" style="display:none">`
+        for (let i = 0; i < options.length; i++){
+            result += `<span class="selectionoption" onclick="document.getElementById('${name}-options').style.display='none';
+                    document.getElementById('${name}-text').textContent='${options[i]}';
+                    selections['${name}']='${options[i]}';${otherfn}">${options[i]}</span><br>`;
+        }
+    result += `</span>`;
+    document.getElementById(target).innerHTML = result; //html has selection menus built in ... but im quirky like that
+}
+function destroySelector(name){
+    selections["name"] = null;
+}
+var blendModes = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
+function syncSelectors(){
+    //a function to update the contents of selectors to the values in the code (in case they were changed by something else)
+}
+var tileRowPage = 0;
+var tileRowsPerPage = 3;
+function addNewTileRow(){
+    editorStates.tempTile.chars.push("");
+    editorStates.tempTile.times.push(0);
+    editorStates.tempTile.colorGroup.push(1);
+    editorStates.tempTile.behavior.push("default");
+    var characterContainer = document.getElementById("charcontainer");
+    var addingIndex = characterContainer.childElementCount;
+    var currentRow = characterContainer.appendChild(document.createElement("tr"));
+    currentRow.id = `tilerow${addingIndex}`;
+    currentRow.innerHTML = `<td class="tile-char"><input type="text" name="ttext${addingIndex}" id="ttext${addingIndex}" minlength="1" maxlength="1" size="1" onchange="editorStates.tempTile.chars[${addingIndex}] = ttext${addingIndex}.value" /></td>
+                            <td class="tile-color"><span id="colselect${addingIndex}"></span></td>
+                            <td class="tile-length"><input type="number" name="tlength${addingIndex}" id="tlength${addingIndex}" size="10" onchange="editorStates.tempTile.times[${addingIndex}] = Number(tlength${addingIndex}.value)" /></td>
+                            <td class="tile-behavior"><span id="behaviorselect${addingIndex}"></span></td>`;
+    buildSelector(`tcolor${addingIndex}`, `colselect${addingIndex}`, [1,2,3,4,5,6,7,8,9], `editorStates.tempTile.colorGroup[${addingIndex}] = Number(selections.tcolor${addingIndex})`);
+    buildSelector(`tbehavior${addingIndex}`, `behaviorselect${addingIndex}`, ["solid", "semisolid", "kill", "none", "default"], `editorStates.tempTile.behavior[${addingIndex}] = selections.tbehavior${addingIndex}`);
+    goToTileRowPage(tileRowPage);
+}
+function removeTileRow(){
+    if (!document.getElementById("charcontainer").hasChildNodes()){return true;} //check if there is already nothing there
+    if (document.getElementById("charcontainer").childElementCount == tileRowPage * tileRowsPerPage + 1){tileRowPage--;}
+    document.getElementById("charcontainer").lastElementChild.remove();
+    editorStates.tempTile.chars.pop();
+    editorStates.tempTile.times.pop();
+    editorStates.tempTile.colorGroup.pop();
+    editorStates.tempTile.behavior.pop();
+    goToTileRowPage(tileRowPage);
+}
+function syncTileRows(){
+    //used when loading an object into the tempTile
+}
+function goToTileRowPage(page){
+    if (page < 0) {return;}
+    var totalRows = document.getElementById("charcontainer").childElementCount;
+    if (totalRows <= page * tileRowsPerPage){return;}
+    tileRowPage = page;
+    for (let i = 0; i < totalRows; i++){
+        document.getElementById(`tilerow${i}`).style.display = "none";
+        if (i >= page * tileRowsPerPage && i < totalRows && i < (page+1) * tileRowsPerPage) {
+            document.getElementById(`tilerow${i}`).style.display = "table-row";
+        }
+    }
+}
+//maybe make a custom color selector too? but only after you have a working editor at least
+
+//trigger row
+tileString = "";
+for (let i = 0; i < gameWidth; i++){
+    tileString += `<span id="t${i}" class="gametile" onclick="openTriggerMenu(${i})">&nbsp;</span>`;
+}
+document.getElementById("triggerrow").innerHTML = tileString;
+buildSelector("ttarget1", "target1", Object.keys(defaultValues), "buildSelector('ttarget2', 'target2', Object.keys(emptyTriggerObject[selections.ttarget1]), '')");
+buildSelector("tvblendx", "tvblendx", blendModes, "tvblend.value = selections.tvblendx"); //silly workaround
+function openTriggerMenu(pos){
+    document.getElementById("tvalue").style.display = "block";
+    document.getElementById(`tvalue-${typeMap[selections.ttarget2]}`).style.display = "inline";
+    editorStates.triggerPosition = pos;
+}
+function addTrigger(){
+    var triggerValue = document.getElementById(`tv${typeMap[selections.ttarget2]}`).value;
+    switch (typeMap[selections.ttarget2]){
+        case "color":
+            triggerValue = cton(triggerValue, Number(tvcolora.value));
+            break;
+        case "number": case "numbera": case "numberp": case "number1":
+            triggerValue = Number(triggerValue);
+    }
+    level.triggers[selections.ttarget1][selections.ttarget2][editorStates.x + editorStates.triggerPosition] = [triggerValue, Number(tlength.value), Number(toffset.value)]; //i hope this is all cloned
+}
+///////////////////////////////
+//      handling stuff       //
+///////////////////////////////
+
+function tileHoverHandler(x, y, press){ //x and y are display coords, press is true when this is called from a click (false when called from hover)
+    y += editorStates.x;
+    if (currentTab == "edit" && (isMouseDown || press)){
+        addTiles(x, y);
+    }
+}
+
+var pressedKeys = [];
+var heldKeys = [];
+var releasedKeys = [];
+document.addEventListener("keydown", function(e){
+    pressedKeys.push(e.key); //cleared on every logic frame
+    heldKeys.push(e.key);
+});
+document.addEventListener("keyup", function(e){
+    releasedKeys.push(e.key); //cleared on every logic frame
+    heldKeys = heldKeys.filter(x => x != e.key); //removes the key in question from the array
+});
+
+var isMouseDown = false;
+var mousePressed = false;
+var mouseReleased = false;
+document.addEventListener("mousedown", function(e){
+    isMouseDown = true;
+    mousePressed = true; //cleared on every logic frame
+});
+document.addEventListener("mouseup", function(e){
+    isMouseDown = false;
+    mouseReleased = true //cleared on every logic frame
+});
+render();
+
+//var gameLoop = setInterval(physicsStep, 1)
+//requestAnimationFrame(render)
+
+//compression routine for exporting levels --- DO LATER
+
+/*  simple "pair encoding(?)"
+    1. turn level into json and celean up some unnecessary syntax
+    2. encode characters to tokens
+    3. find the most common pair(substring?) and make it a new token, replace all occurences, add to decoder array
+    4. convert everything to binary (maybe 12 bit encoding -> 4096 potential tokens but we'll reserve a few for control)
+    5. export as binary and assign some random filetype to it (use .tdl for levels and .tds for textfiles)
+
+*/
+</script>
+</html>
