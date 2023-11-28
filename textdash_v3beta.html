@@ -72,8 +72,11 @@
     .editortile, #triggerrow span {
         outline: 1px solid rgb(0 0 0 / 0.07);
     }
-    .editortile:hover, #triggerrow span:hover{
+    .editortile:hover{
         outline: 2px solid rgb(0 0 0 / 0.5);
+    }
+    #triggerrow span:hover{
+        outline: 4px solid rgb(0 0 0 / 0.5);
     }
     .dialog {
         text-align: center;
@@ -130,7 +133,7 @@
         position: absolute;
         display: flex;
         flex-direction: column;
-        max-height: 200px;
+        max-height: 120px;
         overflow: scroll;
         top: 24px;
         z-index: 10;
@@ -188,6 +191,21 @@
     #edittable tr td {
         padding: 2px;
     }
+    #cttable {
+        border: 2px solid black;
+    }
+    #cttable tr, #cttable tr td{
+        margin: 1px;
+        padding: 1px;
+    }
+    #cttable tr td:hover{
+        color: white;
+        background-color: black;
+        cursor: pointer;
+    }
+    #triggerrow .gametile{
+        text-shadow: 1px 1px white, -1px 1px white, 1px -1px white, -1px -1px white;
+    }
 </style>
 </head>
 <body>
@@ -213,11 +231,11 @@
         <div id="editheader">Slot number: 0</div>
         <div id="editheader2">Set level properties...</div>
         <div>
-            <span onmousedown="editorStates.velocity = -1000;" onmouseup="editorStates.velocity = 0;">&lt;&lt;</span>&nbsp;
-            <span onmousedown="editorStates.velocity = -100;" onmouseup="editorStates.velocity = 0;">&lt;</span>&nbsp;
+            <span onmousedown="editorStates.velocity = -2000;" onmouseup="editorStates.velocity = 0;">&lt;&lt;</span>&nbsp;
+            <span onmousedown="editorStates.velocity = -200;" onmouseup="editorStates.velocity = 0;">&lt;</span>&nbsp;
             <span>0/100</span>&nbsp;
-            <span onmousedown="editorStates.velocity = 100;" onmouseup="editorStates.velocity = 0;">&gt;</span>&nbsp;
-            <span onmousedown="editorStates.velocity = 1000;" onmouseup="editorStates.velocity = 0;">&gt;&gt;</span>
+            <span onmousedown="editorStates.velocity = 200;" onmouseup="editorStates.velocity = 0;">&gt;</span>&nbsp;
+            <span onmousedown="editorStates.velocity = 2000;" onmouseup="editorStates.velocity = 0;">&gt;&gt;</span>
         </div>
     </div>
 
@@ -273,7 +291,7 @@
                     Offset: <input type="number" name="toffset" id="toffset" step="1" min="1" size="10"/> ms |&nbsp;
                 </td>
                 <td class="kys">
-                    <span onclick="addTrigger()" class="clickable">Submit</span>
+                    <span onclick="addTrigger(); " class="clickable">Submit</span>
                 </td>
                 </tr></table>
             </span></div>
@@ -284,10 +302,19 @@
                     <div class="mid">- Tools -</div>
                     <div>Select</div>
                     <div>Playtest</div>
+                    <div>[<span id="filename">No file</span>]</div>
+                    <label for="infile" class="clickable">Choose file</label>
+                    <div class="clickable" onclick="navigator.clipboard.writeText(exportLevel());">Export file</div>
+                    <input type="file" name="infile" id="infile" accept=".tdl" style="display: none;" onchange="
+                    document.getElementById('filename').textContent = infile.files.length == 0 ? 'No file' : infile.files[0].name;
+                    "/>
+                    <div class="clickable" onclick="importLevel(infile.files[0])">Import file</div>
+                    <div class="clickable" onclick="exportRaw()">Export JSON</div>
+                    <div class="clickable" onclick="importRaw(window.prompt('Paste level string'))">Import JSON</div>
                 </td>
                 <td id="chardialog">
                     <div class="mid">- Tile editor -</div>
-                    <div class="mid"><span onclick="goToTileRowPage(tileRowPage-1);">&lt;&lt;</span> | <span onclick="goToTileRowPage(tileRowPage+1);">&gt;&gt;</span></div>
+                    <div class="mid"><span onclick="goToTileRowPage(tileRowPage-1);" style="cursor: pointer;">&lt;&lt;</span> | <span onclick="goToTileRowPage(tileRowPage+1);" style="cursor: pointer;">&gt;&gt;</span></div>
                     <table id="charcontainer"></table>
                     <div class="mid">
                         <span class="clickable" onclick="addNewTileRow()">Add&nbsp;character</span> | 
@@ -299,9 +326,11 @@
                 <td id="chartable">
                     <div class="mid">- Character table -<br>
                     Click on a character to copy it.<br>
-                    Characters with special gameplay effects are outlined.<br>
-                    &lt;&lt; 0000-003F &gt;&gt;</div>
-                    <div>Not added yet LOLOL</div>
+                    Characters with special gameplay effects are outlined.</div>
+                    <div class="mid">
+                        <span onclick="chartablePage-=1; buildChartable(chartablePage)" style="cursor: pointer;">&lt;&lt;</span> 
+                        <span id="ctrange"></span> 
+                        <span onclick="chartablePage+=1; buildChartable(chartablePage)" style="cursor: pointer;">&gt;&gt;</span>
                     </div>
                 </td>
             </tr>
@@ -448,6 +477,7 @@ function ntoc(n){ //destroys alpha cannel (it's only used for setting color lick
 	return o;
 }
 var level = { //this will always hold the level being played/edited, we load them into this from a JSON file
+    title: "default00",
     tiles: Array(10),
     triggers: structuredClone(emptyTriggerObject),
     width: 100,
@@ -507,8 +537,9 @@ function render(){
     //this bit is only run when you're in the editor -- it is enough to update editor stuff on render
     if (currentTab == "edit"){
         editorStates.editorSubpixel += editorStates.velocity;
-        if (editorStates.editorSubpixel > 1200){editorStates.editorSubpixel -= 1200; editorStates.x += 1}
-        if (editorStates.editorSubpixel < 0 && editorStates.x != 0){editorStates.editorSubpixel += 1200; editorStates.x -= 1}
+        var distance = Math.floor(editorStates.editorSubpixel/1200);
+        editorStates.x = Math.max(0, editorStates.x + distance);
+        editorStates.editorSubpixel -= 1200*distance;
     } 
     renderOffset = Math.max(commonStates.x - commonStates.playerColumn, 0);
     renderOffset = Math.min(renderOffset, level.width - gameWidth + commonStates.playerColumn - 1); //the -1 might not be needed, i just left like it -- check this later
@@ -539,11 +570,20 @@ function render(){
             }
         }
     }
-    //render trigger row (TBA display values)
     if (currentTab == "edit"){
         for (let i = 0; i < gameWidth; i++){
             document.getElementById(`t${i}`).textContent = !!level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][i+renderOffset] ? "O" : "\xa0";
+            switch (typeMap[editorStates.tempTrigger.target2]){
+                case "color":
+                    document.getElementById(`t${i}`).style.backgroundColor = arrayToRGB(computeTriggerValue(editorStates.tempTrigger.target1, editorStates.tempTrigger.target2, renderOffset+i, 0, false));
+                    break;
+                //add other displays, maybe some kind of line graph for number types?
+            }
         }
+        pressedKeys = [];
+        releasedKeys  = [];
+        mousePressed = false;
+        mouseReleased = false;
     }
     //render bg
     var element = document.getElementById("gameBackground");
@@ -578,6 +618,10 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
     if (commonStates.xSub > 1200) {commonStates.xSub -= 1200; commonStates.x += 1}
     if (commonStates.xSub < 0) {commonStates.xSub += 1200; commonStates.x -= 1}
     frame += 1;
+    pressedKeys = [];
+    releasedKeys  = [];
+    mousePressed = false;
+    mouseReleased = false;
 }
 
 ///////////////////////////////
@@ -638,10 +682,121 @@ function editLoop(){
     //stuff related to editor
     render();
 }
-function exportLevel(){
-    return JSON.stringify(level);
+function removeNthElement(a, n){
+    return a.slice(0, n).concat(a.slice(n+1, a.length));
 }
-function importLevel(data){
+function exportLevel(){
+    var data = JSON.stringify(level);
+    var dataArray = [...data];
+    var characterArray = [];
+    var decoderArray = [];
+    for (d of dataArray){
+        if (!characterArray.includes(d)){
+            characterArray.push(d);
+        }
+    }
+    var nextValue = characterArray.length;
+    dataArray = dataArray.map((x) => characterArray.indexOf(x));
+    while (nextValue < 4000){
+        //find best pair
+        var pairs = dataArray.map((a, b, c) => `${c[b]}x${c[b+1]}`);
+        pairs.pop();
+        var occurences = {}
+        for (p of pairs) {
+            if (Object.keys(occurences).includes(p)){
+                occurences[p] += 1;
+            }
+            else {
+                occurences[p] = 1;
+            }
+        }
+        var bestScore = Math.max(...Object.values(occurences));
+        if (bestScore < 3){break;}
+        var bestPair = Object.keys(occurences)[Object.values(occurences).indexOf(bestScore)];
+        decoderArray.push(bestPair.split("x").map((j) => Number(j)));
+        //combine entries
+        console.log(dataArray);
+        console.log(nextValue);
+        for (let i = pairs.length-1; i>=0; i--){
+            if (pairs[i] == bestPair){
+                dataArray = removeNthElement(dataArray, i);
+                dataArray[i] = nextValue;
+                i -= 1;
+            }
+        }
+        nextValue++;
+    }
+    //combine data
+    characterArray = characterArray.map((x) => x.codePointAt(0).toString(16).padStart(4, "0"));
+    dataArray = dataArray.map((x) => x.toString(16).padStart(3, "0"));
+    decoderArray = decoderArray.flatMap((x) => [x[0].toString(16).padStart(3, "0"), x[1].toString(16).padStart(3, "0")]);
+    var fullData = dataArray.join("") + "fff" + decoderArray.join("") + "fff" + characterArray.join("");
+    if (fullData.length % 2 == 1) {fullData += "0"}
+    console.log(fullData);
+    var fullDataArray = [];
+    //pack into 8bit array
+    for (let i = 0; i < fullData.length; i+=2){
+        fullDataArray.push(parseInt(fullData.substring(i, i+2), 16));
+    }
+    var exportArray = new Uint8Array(fullDataArray);
+    var exportData = new Blob([exportArray]);
+    var exportURL = URL.createObjectURL(exportData);
+    var q = document.createElement("a");
+    q.download = `${level.title}.tdl`;
+    q.href = exportURL;
+    q.click();
+    URL.revokeObjectURL(exportURL);
+}
+function importLevel(x){
+    x.arrayBuffer().then((data) => {
+        var q = new Uint8Array(data);
+        var dataString = "";
+        for (d of q){
+            dataString += d.toString(16).padStart(2, "0")
+        }
+        //recover arrays
+        var pointer = 0;
+        var dataArray = [];
+        while (dataString.substring(pointer, pointer+3) != "fff"){
+            dataArray.push(parseInt(dataString.substring(pointer, pointer+3), 16));
+            pointer += 3;
+        }
+        pointer += 3;
+        var decoderArray = [];
+        while (dataString.substring(pointer, pointer+3) != "fff"){
+            decoderArray.push([parseInt(dataString.substring(pointer, pointer+3), 16), parseInt(dataString.substring(pointer+3, pointer+6), 16)]);
+            pointer += 6;
+        }
+        decoderArray.reverse()
+        pointer += 3;
+        var characterArray = [];
+        while (pointer < dataString.length){
+            characterArray.push(parseInt(dataString.substring(pointer, pointer+4), 16));
+            pointer += 4;
+        }
+        //decode
+        var nextValue = Math.max(...dataArray);
+        for (e of decoderArray){
+            console.log(nextValue);
+            dataArray = dataArray.flatMap((d) => d == nextValue ? e : d);
+            console.log(dataArray);
+            nextValue--;
+        }
+        console.log(dataArray.map((d) => String.fromCharCode(characterArray[d])).join(""));
+        level = JSON.parse(dataArray.map((d) => String.fromCharCode(characterArray[d])).join(""));
+    });
+    //take the blob and read it into an 8 bit array then hexadecimalize it
+    //read by threes until 'fff' appears twice, read by fours from then on
+    //order: data, decoder, character
+    //find the largest encoded value and go thouugh the decoder array backwards while expanding the data
+    //when the decoder ends, use the character array to recover the original text
+    //parse as json and you're done
+}
+function exportRaw(){
+    navigator.clipboard.writeText(JSON.stringify(level));
+    window.alert("Copied to clipboard");
+}
+function importRaw(data){
     level = JSON.parse(data);
 }
 //requestanimationframe timing, there is no need for 1ms loops, we can do everything on frame draw
@@ -773,7 +928,7 @@ for (let i = 0; i < gameWidth; i++){
     tileString += `<span id="t${i}" class="gametile" onclick="openTriggerMenu(${i})">&nbsp;</span>`;
 }
 document.getElementById("triggerrow").innerHTML = tileString;
-buildSelector("ttarget1", "target1", Object.keys(defaultValues), "buildSelector('ttarget2', 'target2', Object.keys(emptyTriggerObject[selections.ttarget1]), '')");
+buildSelector("ttarget1", "target1", Object.keys(defaultValues), "buildSelector('ttarget2', 'target2', Object.keys(emptyTriggerObject[selections.ttarget1]), 'editorStates.tempTrigger.target2 = selections.ttarget2'); editorStates.tempTrigger.target1 = selections.ttarget1; editorStates.tempTrigger.target2 = Object.keys(emptyTriggerObject[selections.ttarget1])[0];");
 buildSelector("tvblendx", "tvblendx", blendModes, "tvblend.value = selections.tvblendx"); //silly workaround
 function openTriggerMenu(pos){
     document.getElementById("tvalue").style.display = "block";
@@ -790,7 +945,32 @@ function addTrigger(){
             triggerValue = Number(triggerValue);
     }
     level.triggers[selections.ttarget1][selections.ttarget2][editorStates.x + editorStates.triggerPosition] = [triggerValue, Number(tlength.value), Number(toffset.value)]; //i hope this is all cloned
+    //also close the trigger menu
+    document.getElementById("tvalue").style.display = "none";
+    document.getElementById(`tvalue-${typeMap[selections.ttarget2]}`).style.display = "none"; //breaks if you change the target2 while the menu is open
 }
+
+var tableElement = document.getElementById("chartable").appendChild(document.createElement("table"));
+tableElement.id = "cttable";
+for (let i = 0; i < 4; i++){
+    var currentRow = tableElement.appendChild(document.createElement("tr"));
+    for (let j = 0; j < 32; j++){
+        var currentElement = currentRow.appendChild(document.createElement("td"));
+        currentElement.id = `ct${i}x${j}`;
+        currentElement.addEventListener("click", () => navigator.clipboard.writeText(String.fromCharCode(chartablePage*128 + i*32 + j)))
+    } 
+} 
+function buildChartable(page){
+    document.getElementById("ctrange").textContent = `${(page*128).toString(16)}-${(page*128 + 127).toString(16)}`
+    for (let i = 0; i < 4; i++){
+        for (let j = 0; j < 32; j++){
+            var currentElement = document.getElementById(`ct${i}x${j}`);
+            currentElement.textContent = String.fromCharCode(page*128 + i*32 + j);
+        } 
+    } 
+}
+var chartablePage = 0;
+buildChartable(0);
 ///////////////////////////////
 //      handling stuff       //
 ///////////////////////////////
@@ -829,16 +1009,5 @@ render();
 
 //var gameLoop = setInterval(physicsStep, 1)
 //requestAnimationFrame(render)
-
-//compression routine for exporting levels --- DO LATER
-
-/*  simple "pair encoding(?)"
-    1. turn level into json and celean up some unnecessary syntax
-    2. encode characters to tokens
-    3. find the most common pair(substring?) and make it a new token, replace all occurences, add to decoder array
-    4. convert everything to binary (maybe 12 bit encoding -> 4096 potential tokens but we'll reserve a few for control)
-    5. export as binary and assign some random filetype to it (use .tdl for levels and .tds for textfiles)
-
-*/
 </script>
 </html>
