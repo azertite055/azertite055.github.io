@@ -200,7 +200,7 @@
     }
     #cttable tr td:hover{
         color: white;
-        background-color: black;
+        background-color: black !important;
         cursor: pointer;
     }
     #triggerrow .gametile{
@@ -220,16 +220,15 @@
     </div><br>
 
     <div class="mid" id="main">
-        <div id="mainheader">Level 1</div>
+        <div id="mainheader">Go to custom levels tab</div>
     </div>
 
     <div class="mid" id="custom">
-        <div id="customheader">Slot number: 0</div>
+        <div id="customheader"><span class="clickable" onclick="playLevel(0)">Play</span> | Exit</div>
     </div>
 
     <div class="mid" id="edit">
         <div id="editheader">Slot number: 0</div>
-        <div id="editheader2">Set level properties...</div>
         <div>
             <span onmousedown="editorStates.velocity = -2000;" onmouseup="editorStates.velocity = 0;">&lt;&lt;</span>&nbsp;
             <span onmousedown="editorStates.velocity = -200;" onmouseup="editorStates.velocity = 0;">&lt;</span>&nbsp;
@@ -275,7 +274,7 @@
                         <input type="number" name="tvnumbera" id="tvnumbera" min="0" max="360" step="1" size="6"/>
                     </span>
                     <span id="tvalue-numberp" style="display: none;">
-                        <input type="number" name="tvnumberp" id="tvnumberp" min="0" max="1" step="100" size="6"/>
+                        <input type="number" name="tvnumberp" id="tvnumberp" min="0" max="24" step="1" size="6"/>
                     </span>
                     <span id="tvalue-number1" style="display: none;">
                         <input type="number" name="tvnumber1" id="tvnumber1" min="0" max="1" step="0.01" size="6"/>
@@ -298,10 +297,8 @@
         </div>
         <table id="edittable">
             <tr>
-                <td id="editmain">
-                    <div class="mid">- Tools -</div>
-                    <div>Select</div>
-                    <div>Playtest</div>
+                <td id="editsaving">
+                    <div class="mid">- Saving -</div>
                     <div>[<span id="filename">No file</span>]</div>
                     <label for="infile" class="clickable">Choose file</label>
                     <div class="clickable" onclick="navigator.clipboard.writeText(exportLevel());">Export file</div>
@@ -311,6 +308,18 @@
                     <div class="clickable" onclick="importLevel(infile.files[0])">Import file</div>
                     <div class="clickable" onclick="exportRaw()">Export JSON</div>
                     <div class="clickable" onclick="importRaw(window.prompt('Paste level string'))">Import JSON</div>
+                </td>
+                <td id="edittools">
+                    <div class="mid">- Tools -</div>
+                    <div>Read tile</div>
+                    <div id="selectbtn">Select</div>
+                    <div id="selectoptions" style="display: none;">
+                        <div>Use as object</div>
+                        <div>Move selection</div>
+                        <div>Fill with object</div>
+                        <div>Deselect</div>
+                    </div>
+                    <div>Set start position</div>
                 </td>
                 <td id="chardialog">
                     <div class="mid">- Tile editor -</div>
@@ -341,40 +350,34 @@
 var gameWidth = 25;
 var gameHeight = 10;
 var tileString = "";
-var colors = [];
-for (let i = 0; i < 10; i++){
-    colors.push({rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"});
-}
-var bgColor = {c1: [255, 255, 255, 1], c2: [255, 255, 255, 1], gradAngle: 0, grad1: 0, grad2: 1};
-var fgColor = {c1: [255, 255, 255, 1], c2: [255, 255, 255, 1], gradAngle: 0, grad1: 0, grad2: 1, blend: "normal"};
 
 ///////////////////////////////
 //       player stuff        //
 ///////////////////////////////
 
 var player1 = {
-    y: 3, ySub: 0, vy: 0,
+    y: 3, ySub: 0, vy: 0, //y increases downward, n|1200 = n+1|0
     mode: 0, gravity: 1,
-    bufferCheck: true,
-    keyHeld: false
+    bufferCheck: true, previousTile: false, previousY: 3,
 };
 var player2 = {
     y: 3, ySub: 0, vy: 0, //x and y values have subunits of 1/1200, the actual position is always rounded down
     mode: 0, gravity: -1,
-    bufferCheck: true,
-    keyHeld: false
+    bufferCheck: true, previousTile: false, previousY: 3,
 };
-
 var commonStates = {
     height: 10, width: 100,
-    x: 0, speed: 1, xSub: 0, frame: 0, playerColumn: 5,
-    colorMain: [0, 0, 0, 1], colorGlow: [0, 0, 0, 0]
+    x: 0, speed: 1, xSub: 0, frame: 0,
+    colorMain: [0, 0, 0, 1], colorGlow: [0, 0, 0, 0],
+    P2Active: false
 }
-var speedValues = [10, 13, 16, 20, 24];
-var playerIcons = ["X", "O", ">", "M", "U", "Đ"] //cube, ball, wave, spider, ufo, ???
-var gravityValues = [6, 6, 0, 6, 6, 6];
+var defaultPlayer = structuredClone(player1);
+var defaultCommonStates = structuredClone(commonStates);
+var speedValues = [100, 125, 160, 200, 240];
+var playerIcons = ["X", "O", ">", "M", "U", "Đ", "R"] //cube, ball, wave, spider, ufo, line fly, robot
+var gravityValues = [6, 5, 0, 6, 5, 6];
 
-var renderOffset = 0; //at the beginning and the end of a level, the player needs to slide in/out without the camera moving, this variable is used in that case 
+var renderOffset = 0; //at the beginning and the end of a level, the player needs to slide in/out without the camera moving, this variable is used to control that 
 
 /*  -- TILE DEFINITION --
     chars: string[n]            display characters in order of appearance
@@ -382,13 +385,9 @@ var renderOffset = 0; //at the beginning and the end of a level, the player need
     timeBase: int               starting x position for oscillation
     behavior: string[n]         how each character intercats with the player (solid, semisolid, kill, none, default)
     colorGroup: int(1~9)[n]     number of the color to use for each character
-    (you should probably turn this into a class)
-    (classes do nothing XD you'll just pack stuff into objects and you know it)
     *for special objects to have their intended effect, behavior must be set to default
-*/
-
-
-/* -- TRIGGER OBJECT DEFINITION --
+    
+    -- TRIGGER OBJECT DEFINITION --
     target1: c1, c2, ..., c9, bg, fg, common
     target2: whatever that object may contain
     offset: delay before the transition (ms)
@@ -434,18 +433,18 @@ var defaultValues = {
 };
 var currentValues = structuredClone(defaultValues);
 var typeMap = {
-    rgbaMain: "color",
+    rgbaMain: "color", //rgba array
     rgbaGlow: "color",
     c1: "color",
     c2: "color",
     glowRadius: "number",
     glowOffsetX: "number",
     glowOffsetY: "number",
-    playerColumn: "numberp",
-    gradAngle: "numbera",
-    grad1: "number1",
+    playerColumn: "numberp", //integer
+    gradAngle: "numbera", //angle (0~360)
+    grad1: "number1", //0~1
     grad2: "number1",
-    blend: "blend"
+    blend: "blend" //blend mode (string)
 }
 function arrayToRGB(a){
     return `rgb(${a[0]} ${a[1]} ${a[2]} / ${a[3]})`
@@ -460,30 +459,23 @@ function cton(c, a){ //color formatters
     }
 	return d;
 }
-function ntoc(n){ //destroys alpha cannel (it's only used for setting color lickers anyway)
+function ntoc(n){ //destroys alpha cannel (it's only used for setting color selectors anyway)
     if (n.length = 4) {n.pop;}
 	var o = "#";
 	for (i = 0; i < 3; i++){
-		if (n[i] == 0){
-			o += "00";
-		}
-		else if (n[i] < 16){
-			o += "0" + n[i].toString(16);
-		}
-		else{
-			o += n[i].toString(16);
-		}
+		o += n[i].toString(16).padStart(2, "0");
 	}
 	return o;
 }
-var level = { //this will always hold the level being played/edited, we load them into this from a JSON file
+var level = { //this will always hold the level being played/edited, we load them into this from a JSON file (?)
     title: "default00",
     tiles: Array(10),
     triggers: structuredClone(emptyTriggerObject),
     width: 100,
     height: 10,
     initialState: [],
-    speedChanges: [] //we want to keep track of this seperately to make trigger claculations easier [position, speed]
+    speedChanges: [] //we want to keep track of this seperately to make trigger calculations easier [position, speed] (has to be sorted)
+    //there must only be one speed chnage per column (unique x), if you try to add more than 1 then only the firts one applies
     //doing this also means that we have to disallow speed changes in mulistate tiles and also assume that every speed change is necessary
 };
 for (let i = 0; i < level.height; i++) {
@@ -500,7 +492,7 @@ function clamp(a, min, max){ //goes throuh arrays recusively (???????)
 }
 function exists(tile){
     if (!tile){return false}
-    if (!(Object.keys(tile).includes("timeBase") && Object.keys(tile).includes("colorGroup") && Object.keys(tile).includes("behavior") && Object.keys(tile).includes("times") && Object.keys(tile).includes("chars"))){return false;}
+    if (!(Object.keys(tile).includes("timeBase") && Object.keys(tile).includes("colorGroup") && Object.keys(tile).includes("behavior") && Object.keys(tile).includes("times") && Object.keys(tile).includes("chars"))){return false;} //my god...
     return tile.colorGroup.length != 0 && tile.chars.length != 0 && tile.times.length != 0 && tile.behavior.length != 0;
 }
 ///////////////////////////////
@@ -510,9 +502,8 @@ function computeTriggerValue(target1, target2, x, subx, frame){
     frame = frame || posToFrame(x, subx);
     var currentTriggers = level.triggers[target1][target2];
     var nextIndex = currentTriggers.findLastIndex((e,i) => Array.isArray(e) && (i <= x));
-    //console.log(nextIndex);
     var nextTrigger = nextIndex == -1 ? [defaultValues[target1][target2],1,0] : currentTriggers[nextIndex]; //value, duration, offset
-    var currentIndex = currentTriggers.findLastIndex((e,i) => Array.isArray(e) && (i < nextIndex)); //this will be -1 if the trigger doesn't exist, in that cas we will use default values
+    var currentIndex = currentTriggers.findLastIndex((e,i) => Array.isArray(e) && (i < nextIndex)); //this will be -1 if the trigger doesn't exist, in that case we use default values
     var currentTrigger = currentIndex == -1 ? [defaultValues[target1][target2],1,0] : currentTriggers[currentIndex];
     var interpolationValue = clamp((frame - posToFrame(nextIndex, 0) - nextTrigger[2])/nextTrigger[1], 0, 1);
     if (typeMap[target2] == "blend") {return nextTrigger[0];}
@@ -521,7 +512,7 @@ function computeTriggerValue(target1, target2, x, subx, frame){
     return interpolationValue*nextTrigger[0] + (1-interpolationValue)*currentTrigger[0];
 }
 function stateAt(tile, frame){
-    if (!tile || !tile.times) {return}
+    if (!tile || !tile.times) {return false}
     if (tile.times.length == 1) {return {char: tile.chars[0], behavior: tile.behavior[0], colorGroup: tile.colorGroup[0]}}
     frame -= posToFrame(tile.timeBase, 0);
     frame = (9999999 + frame) % tile.times.reduce((a, b) => a + b); //shitty fix for the shitty modulo of js
@@ -533,6 +524,23 @@ function stateAt(tile, frame){
     }
     return {char: tile.chars[index-1], behavior: tile.behavior[index-1], colorGroup: tile.colorGroup[index-1]};
 }
+function tilePropertyRelative(dx, dy, pl, pr){
+    if (pl.y + dy*pl.gravity < 0 || pl.y + dy*pl.gravity >= level.height || commonStates.x + dx < 0 || commonStates.x + dx >= level.width){
+        return false;
+    }
+    //returns the behavior of a tile by a position relative to the player (y coord. adjsted with gravity, down is positive)
+    //use only for gameplay purposes
+    var k = stateAt(level.tiles[pl.y + dy*pl.gravity][commonStates.x + dx], commonStates.frame);
+    if (k.behavior == "default"){
+        k.behavior = "none";
+        if (solidTiles.includes(k.char)){k.behavior = "solid"}
+        if (semisolidTiles.includes(k.char)){k.behavior = "semisolid"}
+        if (deadlyTiles.includes(k.char)){k.behavior = "kill"}
+        if (specialTiles.includes(k.char)){k.behavior = "default"}
+    }
+    return k && k[pr];
+}
+var currentRenderer = -42; //requestfanimationframe id, use this to cancel the animation frame
 function render(){
     //this bit is only run when you're in the editor -- it is enough to update editor stuff on render
     if (currentTab == "edit"){
@@ -541,8 +549,8 @@ function render(){
         editorStates.x = Math.max(0, editorStates.x + distance);
         editorStates.editorSubpixel -= 1200*distance;
     } 
-    renderOffset = Math.max(commonStates.x - commonStates.playerColumn, 0);
-    renderOffset = Math.min(renderOffset, level.width - gameWidth + commonStates.playerColumn - 1); //the -1 might not be needed, i just left like it -- check this later
+    renderOffset = Math.max(commonStates.x - currentValues.common.playerColumn, 0);
+    renderOffset = Math.min(renderOffset, level.width - gameWidth + currentValues.common.playerColumn - 1); //the -1 might not be needed, i just left like it -- check this later
     if (currentTab == "edit"){
         renderOffset = editorStates.x;
     }
@@ -550,7 +558,7 @@ function render(){
     //apply trigger effects (base off of frame number)
     for (var a of Object.keys(emptyTriggerObject)){
         for (var b of Object.keys(emptyTriggerObject[a])){
-            currentValues[a][b] = computeTriggerValue(a, b, renderOffset, currentTab == "edit" ? 0 : commonStates.xSub, renderFrame); //< 0% chance of working
+            currentValues[a][b] = computeTriggerValue(a, b, renderOffset, currentTab == "edit" ? 0 : commonStates.xSub, renderFrame);
         }
     }
     //render tiles
@@ -570,12 +578,31 @@ function render(){
             }
         }
     }
+    //render player
+    if (currentTab != "edit"){
+        document.getElementById(`${player1.y - player1.gravity + (player1.ySub > 1000 ? player1.gravity : 0)}x${commonStates.x - renderOffset}`).textContent = playerIcons[player1.mode];
+        if (commonStates.P2Active) {document.getElementById(`${player2.y - (player2.ySub > 200 ? 0 : player2.gravity)}x${commonStates.x - renderOffset}`).textContent = playerIcons[player2.mode];}
+    }
     if (currentTab == "edit"){
         for (let i = 0; i < gameWidth; i++){
+            var triggerElement = document.getElementById(`t${i}`);
+            var thisTriggerValue = computeTriggerValue(editorStates.tempTrigger.target1, editorStates.tempTrigger.target2, renderOffset+i, 0, false);
             document.getElementById(`t${i}`).textContent = !!level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][i+renderOffset] ? "O" : "\xa0";
             switch (typeMap[editorStates.tempTrigger.target2]){
                 case "color":
-                    document.getElementById(`t${i}`).style.backgroundColor = arrayToRGB(computeTriggerValue(editorStates.tempTrigger.target1, editorStates.tempTrigger.target2, renderOffset+i, 0, false));
+                    triggerElement.style.backgroundColor = arrayToRGB(thisTriggerValue);
+                    break;
+                case "number":
+                    drawLineGraphPart(triggerElement, thisTriggerValue/10 + 0.5);
+                    break;
+                case "numbera":
+                    drawLineGraphPart(triggerElement, thisTriggerValue/360);
+                    break;
+                case "numberp":
+                    drawLineGraphPart(triggerElement, thisTriggerValue/10);
+                    break;
+                case "number1":
+                    drawLineGraphPart(triggerElement, thisTriggerValue);
                     break;
                 //add other displays, maybe some kind of line graph for number types?
             }
@@ -593,37 +620,199 @@ function render(){
     values = currentValues.fg;
     element.style.backgroundImage = `linear-gradient(${values.gradAngle}deg, ${arrayToRGB(values.c1)} ${values.grad1}%, ${arrayToRGB(values.c2)} ${values.grad2}%)`;
     element.style.mixBlendMode = values.blend;
-    window.requestAnimationFrame(render);
+    currentRenderer = window.requestAnimationFrame(render);
 }
+function drawLineGraphPart(target, ratio){
+    target.style.backgroundImage = `linear-gradient(0deg, white ${ratio*100 - 4}%, black ${ratio*100}%, white ${ratio*100 + 4}%)`;
+}
+//gameplay
+
 function physicsStep(pl){ //takes a player object (to allow for duals potentially)
-    var vyTemp = pl.vy += gravityValues[pl.mode]; //helpful constructs
-    var currentTile = level.tiles[pl.y][commonStates.x];
+    //y subunit always increases with gravity, and it is negated when gravity is flipped
+    var vyTemp = pl.vy += gravityValues[pl.mode];
+    vyTemp = Math.min(vyTemp, 250);
+    var currentTile = tilePropertyRelative(0, 0, pl, "behavior");
     var neighboringTiles = []; 
+    var neighboringSpecailCharacters = [];
     for (let i = -1; i < 2; i++){
         for (let j = -1; j < 2; j++){
-            if (level.tiles[pl.y + i][commonStates.x + j]) {neighboringTiles.push(level.tiles[pl.y + i][commonStates.x + j])}
+            neighboringTiles.push(tilePropertyRelative(i, j, pl, "behavior"));
+            if (tilePropertyRelative(i, j, pl, "behavior") == "default"){
+                neighboringSpecailCharacters.push(tilePropertyRelative(i, j, pl, "char"));
+            }
         }
     }
+    var canHitHead = neighboringSpecailCharacters.includes("H") || pl.mode == 1; 
+    var canWaveSlide = neighboringSpecailCharacters.includes("D");
+    var tileBelow = tilePropertyRelative(0, 1, pl, "behavior");
+    var tileAbove = tilePropertyRelative(0, -1, pl, "behavior");
+    var tileFront = tilePropertyRelative(1, 0, pl, "behavior");
+    var landedFlang = false;
     //collisions
-    if (level.tiles[pl.y + pl.gravity][commonStates.x].behavior = "solid" && pl.ySub < 75){
+    if (currentTile == "solid" && (pl.ySub < 250 || (pl.previousTile == false && (pl.y - pl.previousY)*pl.gravity > 0))){ //snap onto top when you clip slightly
+        pl.y -= pl.gravity;
+        pl.ySub = 1199;
+    }
+    if (tileBelow == "solid" && pl.ySub > 1150 && (pl.mode != 2 || (pl.mode == 2 && canWaveSlide))){ //snap onto block below for small distances
         vyTemp = 0;
-        pl.ySub = 0;
+        pl.ySub = 1199;
+        landedFlang = true;
+    }
+    if (tileAbove == "solid" && pl.ySub < 1000 && !canHitHead){ //hitting head
+        playLevel()
+    }
+    if (pl.y < 0 || pl.y >= gameHeight){ //falling out of the level
+        playLevel()
+    }
+    if (deadlyTiles.includes(currentTile) || solidTiles.includes(currentTile)){ //crashing into something
+        playLevel()
+    }
+    //special tile interaction
+    if (neighboringSpecailCharacters.includes("0")){ //fix this
+        commonStates.speed = 0;
+    }
+    if (neighboringSpecailCharacters.includes("1")){
+        commonStates.speed = 1;
+    }
+    if (neighboringSpecailCharacters.includes("2")){
+        commonStates.speed = 2;
+    }
+    if (neighboringSpecailCharacters.includes("3")){
+        commonStates.speed = 3;
+    }
+    if (neighboringSpecailCharacters.includes("4")){
+        commonStates.speed = 4;
+    }
+    if (neighboringSpecailCharacters.includes("5")){
+        commonStates.speed = 5;
+    }
+    if (neighboringSpecailCharacters.includes("-") && pl.ySub > 800){
+        vyTemp = -180;
+    }
+    if (neighboringSpecailCharacters.includes("=") && pl.ySub > 800){
+        pl.gravity *= -1;
+        pl.y += pl.gravity;
+        pl.ySub = 1200 - pl.ySub;
+        vyTemp = 180;
+    }
+    if (neighboringSpecailCharacters.includes(")")){
+        pl.gravity = 1;
+        pl.y += pl.gravity;
+        pl.ySub = 1200 - pl.ySub;
+    }
+    if (neighboringSpecailCharacters.includes("[")){
+        pl.gravity = -1;
+        pl.y += pl.gravity;
+        pl.ySub = 1200 - pl.ySub;
+    }
+    if (neighboringSpecailCharacters.includes("X")){
+        pl.mode = 0;
+    }
+    if (neighboringSpecailCharacters.includes("O")){
+        pl.mode = 1;
+    }
+    if (neighboringSpecailCharacters.includes(">")){
+        pl.mode = 2;
+    }
+    if (neighboringSpecailCharacters.includes("M")){
+        pl.mode = 3;
+    }
+    if (neighboringSpecailCharacters.includes("U")){
+        pl.mode = 4;
+    }
+    if (neighboringSpecailCharacters.includes("Đ")){
+        pl.mode = 5;
+    }
+    if (neighboringSpecailCharacters.includes("R")){
+        pl.mode = 6;
     }
 
-    pl.vy = vyTemp; //calculating player velocity and position
+    //click/hold interaction
+    if (mousePressed || (isMouseDown && pl.bufferCheck)){
+        switch (pl.mode){ //cube, ball, wave, spider, ufo, ???
+            case 0:
+                if (landedFlang) {vyTemp = -150;}
+                break;
+            case 1:
+                if (landedFlang){
+                    pl.gravity *= -1;
+                    pl.y += pl.gravity;
+                    pl.ySub = 1200 - pl.ySub;
+                }
+                break;
+            case 2:
+                vyTemp = -speedValues[pl.speed];
+                break;
+            case 3:
+                if (landedFlang){
+                    pl.gravity *= -1;
+                    pl.ySub = 1199;
+                    vyTemp = 0;
+                    for (let i = 0; i < 10; i++){
+                        //spider teleportation goes here
+                    }
+                }
+                break;
+            case 4:
+                vyTemp = -120;
+                break;
+            case 5:
+                break;
+        }
+
+        //orb interaction
+        if (neighboringSpecailCharacters.includes("Q") && pl.mode != 2){
+            vyTemp = -150;
+        }
+        if (neighboringSpecailCharacters.includes("@")){
+            pl.gravity *= -1;
+            pl.y += pl.gravity;
+            pl.ySub = 1200 - pl.ySub;
+            vyTemp = 180;
+        }
+
+        pl.bufferCheck = false;
+    }
+    //release interaction
+    if (mouseReleased){
+        switch (pl.mode){ //cube, ball, wave, spider, ufo, ???
+            case 0:
+                break;
+            case 1:
+                break;
+            case 2:
+            vyTemp = speedValues[pl.speed];
+                break;
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                break;
+        }
+        pl.bufferCheck = true;
+    }
+    //calculate velocities
+    pl.vy = vyTemp; 
     pl.ySub += pl.vy;
-    if (pl.ySub > 1200) {pl.ySub -= 1200; pl.y += 1}
-    if (pl.ySub < 0) {pl.ySub += 1200; pl.y -= 1}
-    commonStates.xSub += speedValues[pl.speed];
+    pl.previousY = pl.y;
+    if (pl.ySub > 1200) {pl.ySub -= 1200; pl.y += pl.gravity}
+    if (pl.ySub < 0) {pl.ySub += 1200; pl.y -= pl.gravity}
+    console.log(pl.y, " ",pl.ySub);
+    pl.previousTile = currentTile;
+}
+function gameLoop(){
+    physicsStep(player1);
+    if (commonStates.P2Active) {physicsStep(player2)}
+    commonStates.xSub += speedValues[commonStates.speed];
     if (commonStates.xSub > 1200) {commonStates.xSub -= 1200; commonStates.x += 1}
     if (commonStates.xSub < 0) {commonStates.xSub += 1200; commonStates.x -= 1}
-    frame += 1;
+    commonStates.frame += 1;
     pressedKeys = [];
     releasedKeys  = [];
     mousePressed = false;
     mouseReleased = false;
 }
-
 ///////////////////////////////
 //          editor           //
 ///////////////////////////////
@@ -641,7 +830,9 @@ var editorStates = {
     triggerPosition: 0,
     numberDialogState: {value: 0, min: 0, max: 1, integer: false},
     whatToAdd: [[{}]], //2d tile array
+    whatToOverwrite: {chars: [true], times: [true], timeBase: [true], behavior: [true], colorGroup: [true], stateNumber: [true]}, //add later
     selection: [[0, 0], [0, 0]], //top left x,y; bottom right x,y
+    selectedTiles: [[{}]],
     startPosData: {} //player object
 }
 function posToFrame(x, subx){ //only used in editor previews ugh guys please appreciate this
@@ -655,32 +846,28 @@ function posToFrame(x, subx){ //only used in editor previews ugh guys please app
     else {
         thisTriggerDistance = (level.speedChanges[0][0]-1) * 1200;
         if (subx < thisTriggerDistance){
-            return Math.floor(subx / speedValues[1]);
+            return Math.floor(subx / speedValues[1]); //special case for first speed change (ends before it)
         }
         else {
-            result = thisTriggerDistance
-            subx -= thisTriggerDistance / speedValues[1];
+            result = thisTriggerDistance / speedValues[1] // (doesn't end before)
+            subx -= thisTriggerDistance;
         }
     }
     for (let i = 0; i < level.speedChanges.length-1; i++){
         thisTriggerDistance = level.speedChanges[i+1][0] - level.speedChanges[i][0];
-        thisTriggerDistance *= 1200; //code seperated for clarity
+        thisTriggerDistance *= 1200; //convert to subpixels
         var currentSpeed = speedValues[level.speedChanges[i][1]];
         if (subx < thisTriggerDistance){
             result += Math.floor(subx / currentSpeed);
             return result;
         }
         else {
-            result += thisTriggerDistance
-            subx -= thisTriggerDistance / currentSpeed;
+            result += thisTriggerDistance / currentSpeed
+            subx -= thisTriggerDistance;
         }
     }
-    result += Math.floor(subx / speedValues[level.speedChanges[level.speedChanges.length][1]]);
+    result += Math.floor(subx / speedValues[level.speedChanges[level.speedChanges.length-1][1]]);
     return result;
-}
-function editLoop(){
-    //stuff related to editor
-    render();
 }
 function removeNthElement(a, n){
     return a.slice(0, n).concat(a.slice(n+1, a.length));
@@ -695,28 +882,22 @@ function exportLevel(){
             characterArray.push(d);
         }
     }
+    var foundPairs = [];
     var nextValue = characterArray.length;
     dataArray = dataArray.map((x) => characterArray.indexOf(x));
-    while (nextValue < 4000){
+    while (nextValue < 4000){ //12 bit encoding -> we have max 4096 characters, this is a bit less to make sure 
         //find best pair
         var pairs = dataArray.map((a, b, c) => `${c[b]}x${c[b+1]}`);
         pairs.pop();
         var occurences = {}
         for (p of pairs) {
-            if (Object.keys(occurences).includes(p)){
-                occurences[p] += 1;
-            }
-            else {
-                occurences[p] = 1;
-            }
+            occurences[p] = occurences[p]+1 || 1;
         }
         var bestScore = Math.max(...Object.values(occurences));
         if (bestScore < 3){break;}
         var bestPair = Object.keys(occurences)[Object.values(occurences).indexOf(bestScore)];
         decoderArray.push(bestPair.split("x").map((j) => Number(j)));
         //combine entries
-        console.log(dataArray);
-        console.log(nextValue);
         for (let i = pairs.length-1; i>=0; i--){
             if (pairs[i] == bestPair){
                 dataArray = removeNthElement(dataArray, i);
@@ -732,7 +913,6 @@ function exportLevel(){
     decoderArray = decoderArray.flatMap((x) => [x[0].toString(16).padStart(3, "0"), x[1].toString(16).padStart(3, "0")]);
     var fullData = dataArray.join("") + "fff" + decoderArray.join("") + "fff" + characterArray.join("");
     if (fullData.length % 2 == 1) {fullData += "0"}
-    console.log(fullData);
     var fullDataArray = [];
     //pack into 8bit array
     for (let i = 0; i < fullData.length; i+=2){
@@ -740,6 +920,7 @@ function exportLevel(){
     }
     var exportArray = new Uint8Array(fullDataArray);
     var exportData = new Blob([exportArray]);
+    //export
     var exportURL = URL.createObjectURL(exportData);
     var q = document.createElement("a");
     q.download = `${level.title}.tdl`;
@@ -767,30 +948,21 @@ function importLevel(x){
             decoderArray.push([parseInt(dataString.substring(pointer, pointer+3), 16), parseInt(dataString.substring(pointer+3, pointer+6), 16)]);
             pointer += 6;
         }
-        decoderArray.reverse()
+        decoderArray.reverse() //??? just trust me
         pointer += 3;
         var characterArray = [];
         while (pointer < dataString.length){
             characterArray.push(parseInt(dataString.substring(pointer, pointer+4), 16));
             pointer += 4;
         }
-        //decode
+        //decode data
         var nextValue = Math.max(...dataArray);
         for (e of decoderArray){
-            console.log(nextValue);
             dataArray = dataArray.flatMap((d) => d == nextValue ? e : d);
-            console.log(dataArray);
             nextValue--;
         }
-        console.log(dataArray.map((d) => String.fromCharCode(characterArray[d])).join(""));
         level = JSON.parse(dataArray.map((d) => String.fromCharCode(characterArray[d])).join(""));
     });
-    //take the blob and read it into an 8 bit array then hexadecimalize it
-    //read by threes until 'fff' appears twice, read by fours from then on
-    //order: data, decoder, character
-    //find the largest encoded value and go thouugh the decoder array backwards while expanding the data
-    //when the decoder ends, use the character array to recover the original text
-    //parse as json and you're done
 }
 function exportRaw(){
     navigator.clipboard.writeText(JSON.stringify(level));
@@ -799,21 +971,74 @@ function exportRaw(){
 function importRaw(data){
     level = JSON.parse(data);
 }
-//requestanimationframe timing, there is no need for 1ms loops, we can do everything on frame draw
 function addTiles(y, x){
+    changeEditorLength(Math.max(editorStates.whatToAdd.length + x, level.tiles[0].length));
     for (let i = 0; i < editorStates.whatToAdd.length; i++){
         for (let j = 0; j < editorStates.whatToAdd[0].length; j++){
             if (y+j >= 0 && x+i < level.tiles[0].length){
-                level.tiles[y+j][x+i] = structuredClone(editorStates.whatToAdd[j][i]); //just making sure,..
+                var thisTile = editorStates.whatToAdd[j][i];
+                if (level.speedChanges.map(a => a[0]).indexOf(x+i) != -1 && level.speedChanges[level.speedChanges.map(a => a[0]).indexOf(x+i)][2] == y+j){ //remove (overwrite) speed changes
+                    level.speedChanges = removeNthElement(level.speedChanges, level.speedChanges.map(a => a[0]).indexOf(x+i));
+                }
+                if (speedchangeTiles.includes(thisTile.chars[0]) && !level.speedChanges.map(a => a[0]).includes(x+i)){ //add speed changes
+                    level.speedChanges.push([x+i, Number(thisTile.chars[0]), y+j]);
+                    level.speedChanges.sort((a, b) => a[0] - b[0]); //must be sorted for thing to work properly
+                }
+                level.tiles[y+j][x+i] = structuredClone(thisTile);
             }
         }
     }
 }
+function changeEditorLength(newlen){
+    newlen = clamp(newlen, 25, 4096); //arbitrary max level length
+    if (level.tiles[0].length > newlen){
+        //make smaller
+        while (level.tiles[0].length > newlen){
+            for (var tr of level.tiles){
+                tr.pop();
+            }
+        }
+    }
+    else {
+        //make larger
+        while (level.tiles[0].length < newlen){
+            for (var tr of level.tiles){
+                tr.push(null);
+            }
+        }
+    }
+}
+var inLevel = false;
+var levelLoopId;
+function playLevel(level){
+    window.cancelAnimationFrame(currentRenderer);
+    clearInterval(levelLoopId);
+        //loadLevel(level) wich would load the level in question from a file into the level object -- implement when needed
+    if (inLevel == true){
+        //this means we have died/restarted at least once, so we update stats
+    }
+    inLevel = true;
+    //reset values
+    player1 = defaultPlayer; //player 2 is always set when you go into a dual so no need to reset it
+    commonStates = defaultCommonStates;
+    render();
+    levelLoopId = setInterval(gameLoop, 10);
+}
+function exitLevel(){
+    window.cancelAnimationFrame(currentRenderer);
+    clearInterval(levelLoopId);
+    inLevel = false;
+}
 
+
+var settings = {
+    autoRetry: true,
+    sex: false 
+};
 ///////////////////////////////
 //     html constructors     //
 ///////////////////////////////
-function makeFiller(){
+function makeFiller(){ //creates an empty element the same size as the game screen
     var q = ""
     for (let i = 0; i < gameWidth; i++){q += "&nbsp;"}
     for (let i = 0; i < gameHeight; i++){q += "<br>"}
@@ -838,7 +1063,7 @@ for (let i = 0; i < gameHeight; i++){
 tileString += "</span>"
 document.getElementById("game").innerHTML = tileString;
 
-var currentTab = "Uhhh...."
+var currentTab = "blablabla"
 var tabs = {
     main: ["main", "container", "practice"],
     custom: ["custom", "container", "practice"],
@@ -847,12 +1072,36 @@ var tabs = {
 };
 var everyTab = ["main", "container", "custom", "practice", "edit", "editorunder", "settings", "editorInterface"]; //questionable
 function switchTab(tabname){
+    //what to do when switching FROM this tab
+    switch (tabname){
+        case "main":
+            break;
+        case "custom":
+            break;
+        case "edit":
+            window.cancelAnimationFrame(currentRenderer);
+            break;
+        case "settings":
+            break;
+    }
     document.getElementById("game").classList.remove(currentTab);
     document.getElementById("game").classList.add(tabname);
     for (t of everyTab){
         document.getElementById(t).style.display = tabs[tabname].includes(t) ? "block" : "none";
     }
     currentTab = tabname;
+    //what to do when switching TO this tab
+    switch (tabname){
+        case "main":
+            break;
+        case "custom":
+            break;
+        case "edit":
+            render();
+            break;
+        case "settings":
+            break;
+    }
 }
 switchTab("main");
 var selections = {}
@@ -874,11 +1123,15 @@ function destroySelector(name){
 }
 var blendModes = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
 function syncSelectors(){
-    //a function to update the contents of selectors to the values in the code (in case they were changed by something else)
+    for (const s of selections){
+        document.getElementById(`${s}-text`).textContent = selections[s];
+    }
 }
 var tileRowPage = 0;
 var tileRowsPerPage = 3;
+var activeTileRows = 0;
 function addNewTileRow(){
+    activeTileRows++;
     editorStates.tempTile.chars.push("");
     editorStates.tempTile.times.push(0);
     editorStates.tempTile.colorGroup.push(1);
@@ -898,6 +1151,7 @@ function addNewTileRow(){
 function removeTileRow(){
     if (!document.getElementById("charcontainer").hasChildNodes()){return true;} //check if there is already nothing there
     if (document.getElementById("charcontainer").childElementCount == tileRowPage * tileRowsPerPage + 1){tileRowPage--;}
+    activeTileRows--;
     document.getElementById("charcontainer").lastElementChild.remove();
     editorStates.tempTile.chars.pop();
     editorStates.tempTile.times.pop();
@@ -906,7 +1160,32 @@ function removeTileRow(){
     goToTileRowPage(tileRowPage);
 }
 function syncTileRows(){
-    //used when loading an object into the tempTile
+    //used when loading a tile(s) into the tile editor
+    if (editorStates.whatToAdd.length == 1 && editorStates.whatToAdd[0].length == 1){ //one tile being loaded, make rows
+        var selectedTile = editorStates.whatToAdd[0][0];
+        //adjust row number
+        while (activeTileRows < selectedTile.chars.length){
+            addNewTileRow();
+        }
+        while (activeTileRows > selectedTile.chars.length){
+            removeTileRow();
+        }
+        //load data
+        for (let i = 0; i < activeTileRows; i++){
+            document.getElementById(`ttext${i}`).value = selectedTile.chars[i];
+            document.getElementById(`tlength${i}`).value = selectedTile.times[i];
+            selections[`tcolor${i}`] = selectedTile.colorGroup[i];
+            selections[`tbehavior${i}`] = selectedTile.behavior[i];
+        }
+        syncSelectors();
+    }
+    else { //multile tiles being loaded, use multiple selection dialog
+    /*
+        <div>Multiple tiles selected
+            Click below to reurn to tile editor (removes selection)
+            Return
+    */
+    }
 }
 function goToTileRowPage(page){
     if (page < 0) {return;}
@@ -920,7 +1199,7 @@ function goToTileRowPage(page){
         }
     }
 }
-//maybe make a custom color selector too? but only after you have a working editor at least
+//maybe make a custom color selector too?
 
 //trigger row
 tileString = "";
@@ -959,13 +1238,32 @@ for (let i = 0; i < 4; i++){
         currentElement.id = `ct${i}x${j}`;
         currentElement.addEventListener("click", () => navigator.clipboard.writeText(String.fromCharCode(chartablePage*128 + i*32 + j)))
     } 
-} 
+}
+var deadlyTiles = ["A", "V", "Ж"];
+var solidTiles = ["#", "Z", "Ш"];
+var semisolidTiles = ["T"];
+var specialTiles = ["@", "Ö", "¤", "÷", "-", "=", "~", "Q", ")", "[", "0", "1", "2", "3", "4", "D", "H", "X", "O", ">", "M", "U", "Đ", "R"];
+var speedchangeTiles = ["0", "1", "2", "3", "4"];
 function buildChartable(page){
     document.getElementById("ctrange").textContent = `${(page*128).toString(16)}-${(page*128 + 127).toString(16)}`
     for (let i = 0; i < 4; i++){
         for (let j = 0; j < 32; j++){
             var currentElement = document.getElementById(`ct${i}x${j}`);
-            currentElement.textContent = String.fromCharCode(page*128 + i*32 + j);
+            var char = String.fromCharCode(page*128 + i*32 + j);
+            currentElement.textContent = char;
+            currentElement.style.backgroundColor = "#FFFFFF";
+            if (deadlyTiles.includes(char)){
+                currentElement.style.backgroundColor = "#FF6060";
+            }
+            if (solidTiles.includes(char)){
+                currentElement.style.backgroundColor = "#B0B0B0";
+            }
+            if (semisolidTiles.includes(char)){
+                currentElement.style.backgroundColor = "#A0A0F0";
+            }
+            if (specialTiles.includes(char)){
+                currentElement.style.backgroundColor = "#00FFFF";
+            }
         } 
     } 
 }
@@ -1005,9 +1303,5 @@ document.addEventListener("mouseup", function(e){
     isMouseDown = false;
     mouseReleased = true //cleared on every logic frame
 });
-render();
-
-//var gameLoop = setInterval(physicsStep, 1)
-//requestAnimationFrame(render)
 </script>
 </html>
