@@ -198,13 +198,23 @@
         margin: 1px;
         padding: 1px;
     }
-    #cttable tr td:hover{
+    #cttable tr td:hover, #savedobjs tr td:hover{
         color: white;
         background-color: black !important;
         cursor: pointer;
     }
     #triggerrow .gametile{
         text-shadow: 1px 1px white, -1px 1px white, 1px -1px white, -1px -1px white;
+    }
+    .selected {
+        outline: 2px solid rgb(0 255 255 / 0.35);
+    }
+    #savedobjpreview {
+        outline: 2px solid black;
+        position: absolute;
+        display: none;
+        background-color: white;
+        z-index: 100;
     }
 </style>
 </head>
@@ -311,31 +321,43 @@
                 </td>
                 <td id="edittools">
                     <div class="mid">- Tools -</div>
-                    <div>Read tile</div>
-                    <div id="selectbtn">Select</div>
-                    <div id="selectoptions" style="display: none;">
-                        <div>Use as object</div>
-                        <div>Move selection</div>
-                        <div>Fill with object</div>
-                        <div>Deselect</div>
-                    </div>
                     <div>Set start position</div>
+                    <div id="selectbtn" class="clickable" onclick="editorStates.mode = 'select';">Select</div>
+                    <div id="selectoptions" style="display: none;">
+                        <div class="clickable" onclick="editorStates.whatToAdd = editorStates.selectedTiles; syncTileRows();">Use as object</div>
+                        <div class="clickable" onclick="fillSelecion()">Fill with object</div>
+                        <div class="clickable" onclick="editorStates.hasSelection = false; document.getElementById('selectbtn').style.display = 'inline-block'; document.getElementById('selectoptions').style.display = 'none';">Deselect</div>
+                        <div class="clickable" onclick="savingCustom=true, savingFromSelection=true">Save object</div>
+                    </div>
+                    <table id="savedobjs"></table>
+                    <div class="clickable" onclick="savingCustom=true, savingFromSelection=false">Save object</div>
+                    <div>Preview colors <input type="checkbox" name="previewcolors" id="previewcolors" checked="true"/></div>
                 </td>
                 <td id="chardialog">
                     <div class="mid">- Tile editor -</div>
-                    <div class="mid"><span onclick="goToTileRowPage(tileRowPage-1);" style="cursor: pointer;">&lt;&lt;</span> | <span onclick="goToTileRowPage(tileRowPage+1);" style="cursor: pointer;">&gt;&gt;</span></div>
-                    <table id="charcontainer"></table>
-                    <div class="mid">
-                        <span class="clickable" onclick="addNewTileRow()">Add&nbsp;character</span> | 
-                        <span class="clickable" onclick="removeTileRow()">Remove&nbsp;character</span>
+                    <div id="singletile">
+                        <div class="mid"><span onclick="goToTileRowPage(tileRowPage-1);" style="cursor: pointer;">&lt;&lt;</span> | <span onclick="goToTileRowPage(tileRowPage+1);" style="cursor: pointer;">&gt;&gt;</span></div>
+                        <table id="charcontainer"></table>
+                        <div class="mid">
+                            <span class="clickable" onclick="addNewTileRow()">Add&nbsp;character</span> | 
+                            <span class="clickable" onclick="removeTileRow()">Remove&nbsp;character</span>
+                        </div>
+                        <div class="mid">Start of oscillation:<input type="number" name="tiletimebase" id="tiletimebase" min="0" step="1" size="9" onchange="editorStates.tempTile.timeBase=Number(tiletimebase.value)"/></div>
+                        <div class="mid clickable" onclick="editorStates.whatToAdd=[[editorStates.tempTile]]">Use tile</div>
                     </div>
-                    <div class="mid">Start of oscillation:<input type="number" name="tiletimebase" id="tiletimebase" min="0" step="1" size="9" onchange="editorStates.tempTile.timeBase=Number(tiletimebase.value)"/></div>
-                    <div class="mid clickable" onclick="editorStates.whatToAdd[0][0]=editorStates.tempTile">Use tile</div>
+                    <div id="multitile" class="mid" style="display: none;">
+                        <div>Multiple tiles being<br>used as object.</div>
+                        <br>
+                        <div class="clickable" onclick="editorStates.whatToAdd=[[editorStates.whatToAdd[0][0]]]; syncTileRows()">Return to single mode</div>
+                        <br>
+                    </div>
+                    <br>
+                    <div> Delete mode <input type="checkbox" name="deletemode" id="deletemode"/></div>
                 </td>
                 <td id="chartable">
                     <div class="mid">- Character table -<br>
                     Click on a character to copy it.<br>
-                    Characters with special gameplay effects are outlined.</div>
+                    Characters with special gameplay effects are colored.</div>
                     <div class="mid">
                         <span onclick="chartablePage-=1; buildChartable(chartablePage)" style="cursor: pointer;">&lt;&lt;</span> 
                         <span id="ctrange"></span> 
@@ -344,6 +366,7 @@
                 </td>
             </tr>
         </table>
+        <div id="savedobjpreview"></div>
     </div>
     <input type="text" id="tvblend" name="tvblend" style="display: none;"/><!--don't worry about this-->
 <script>
@@ -359,11 +382,13 @@ var player1 = {
     y: 3, ySub: 0, vy: 0, //y increases downward, n|1200 = n+1|0
     mode: 0, gravity: 1,
     bufferCheck: true, previousTile: false, previousY: 3,
+    dashing: false, fallTimer: 6, flag1: false
 };
 var player2 = {
     y: 3, ySub: 0, vy: 0, //x and y values have subunits of 1/1200, the actual position is always rounded down
     mode: 0, gravity: -1,
     bufferCheck: true, previousTile: false, previousY: 3,
+    dashing: false, fallTimer: 6, flag1: false
 };
 var commonStates = {
     height: 10, width: 100,
@@ -375,7 +400,7 @@ var defaultPlayer = structuredClone(player1);
 var defaultCommonStates = structuredClone(commonStates);
 var speedValues = [100, 125, 160, 200, 240];
 var playerIcons = ["X", "O", ">", "M", "U", "Đ", "R"] //cube, ball, wave, spider, ufo, line fly, robot
-var gravityValues = [6, 5, 0, 6, 5, 6];
+var gravityValues = [6, 5, 0, 6, 8, 0, 7];
 
 var renderOffset = 0; //at the beginning and the end of a level, the player needs to slide in/out without the camera moving, this variable is used to control that 
 
@@ -576,6 +601,7 @@ function render(){
             else {
                 document.getElementById(`${i}x${j}`).textContent = "\xa0"; //regular spaces may disappear so we use a non-breaking one instead to be sure
             }
+            document.getElementById(`e${i}x${j}`).classList.remove("selected");
         }
     }
     //render player
@@ -585,6 +611,7 @@ function render(){
     }
     if (currentTab == "edit"){
         for (let i = 0; i < gameWidth; i++){
+            //triggers
             var triggerElement = document.getElementById(`t${i}`);
             var thisTriggerValue = computeTriggerValue(editorStates.tempTrigger.target1, editorStates.tempTrigger.target2, renderOffset+i, 0, false);
             document.getElementById(`t${i}`).textContent = !!level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][i+renderOffset] ? "O" : "\xa0";
@@ -604,7 +631,19 @@ function render(){
                 case "number1":
                     drawLineGraphPart(triggerElement, thisTriggerValue);
                     break;
-                //add other displays, maybe some kind of line graph for number types?
+            }
+            //selection
+            if (editorStates.hasSelection){
+                editorStates.selectedTiles = [];
+                for (let i = editorStates.selection[0][0]; i <= editorStates.selection[1][0]; i++){
+                    editorStates.selectedTiles.push([]);
+                    for (let j = editorStates.selection[0][1]; j <= editorStates.selection[1][1]; j++){
+                        if (i >= 0 && i < gameHeight && j-renderOffset >= 0 && j-renderOffset < gameWidth){
+                            document.getElementById(`e${i}x${j-renderOffset}`).classList.add("selected");
+                            editorStates.selectedTiles[i-editorStates.selection[0][0]].push(level.tiles[i][j]);
+                        }
+                    }
+                }
             }
         }
         pressedKeys = [];
@@ -667,6 +706,15 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
     if (deadlyTiles.includes(currentTile) || solidTiles.includes(currentTile)){ //crashing into something
         playLevel()
     }
+    if (landedFlang){
+        pl.fallTimer = 6;
+    } else {
+        pl.fallTimer--;
+    }
+    if (pl.falltimer > 0){
+        landedFlang = true;
+    }
+    
     //special tile interaction
     if (neighboringSpecailCharacters.includes("0")){ //fix this
         commonStates.speed = 0;
@@ -696,11 +744,12 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
         vyTemp = 180;
     }
     if (neighboringSpecailCharacters.includes(")")){
+        if (pl.gravity == -1) {pl.y += pl.gravity;}
         pl.gravity = 1;
-        pl.y += pl.gravity;
         pl.ySub = 1200 - pl.ySub;
     }
     if (neighboringSpecailCharacters.includes("[")){
+        if (pl.gravity == 1) {pl.y += pl.gravity;}
         pl.gravity = -1;
         pl.y += pl.gravity;
         pl.ySub = 1200 - pl.ySub;
@@ -741,16 +790,21 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
                 }
                 break;
             case 2:
-                vyTemp = -speedValues[pl.speed];
+                vyTemp = -pl.gravity*speedValues[pl.speed];
                 break;
             case 3:
                 if (landedFlang){
                     pl.gravity *= -1;
                     pl.ySub = 1199;
                     vyTemp = 0;
-                    for (let i = 0; i < 10; i++){
-                        //spider teleportation goes here
+                    let dy = 0;
+                    while (tilePropertyRelative(0, dy, "behavior") != "solid"){
+                        dy += gravity;
+                        if (pl.y+dy < 0 || pl.y+dy > gameHeight){
+                            playLevel();
+                        }
                     }
+                    pl.y += dy-gravity; 
                 }
                 break;
             case 4:
@@ -758,8 +812,10 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
                 break;
             case 5:
                 break;
+            case 6:
+                if (landedFlang) {vyTemp = -120;}
+                break;
         }
-
         //orb interaction
         if (neighboringSpecailCharacters.includes("Q") && pl.mode != 2){
             vyTemp = -150;
@@ -768,9 +824,27 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
             pl.gravity *= -1;
             pl.y += pl.gravity;
             pl.ySub = 1200 - pl.ySub;
-            vyTemp = 180;
+            if (pl.mode != 2) {vyTemp = 180;}
         }
-
+        if (neighboringSpecailCharacters.includes("Ö")){
+            pl.gravity *= -1;
+            pl.y += pl.gravity;
+            pl.ySub = 1200 - pl.ySub;
+            if (pl.mode != 2) {vyTemp = -150;}
+        }
+        if (neighboringSpecailCharacters.includes("¤")){
+            pl.gravity *= -1;
+            pl.ySub = 1199;
+            vyTemp = 0;
+            let dy = 0;
+            while (tilePropertyRelative(0, dy, "behavior") != "solid"){
+                dy += gravity;
+                if (pl.y+dy < 0 || pl.y+dy > gameHeight){
+                    playLevel();
+                }
+            }
+            pl.y += dy-gravity; 
+        }
         pl.bufferCheck = false;
     }
     //release interaction
@@ -781,7 +855,6 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
             case 1:
                 break;
             case 2:
-            vyTemp = speedValues[pl.speed];
                 break;
             case 3:
                 break;
@@ -793,12 +866,15 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
         pl.bufferCheck = true;
     }
     //calculate velocities
+    if (pl.mode == 2){ //wave speed is handled outside normal means
+        vyTemp = gravity*speedValues[commonStates.speed] * (isMouseDown ? -1 : 1);
+    }
     pl.vy = vyTemp; 
     pl.ySub += pl.vy;
     pl.previousY = pl.y;
     if (pl.ySub > 1200) {pl.ySub -= 1200; pl.y += pl.gravity}
     if (pl.ySub < 0) {pl.ySub += 1200; pl.y -= pl.gravity}
-    console.log(pl.y, " ",pl.ySub);
+    //console.log(pl.y, " ",pl.ySub);
     pl.previousTile = currentTile;
 }
 function gameLoop(){
@@ -831,6 +907,7 @@ var editorStates = {
     numberDialogState: {value: 0, min: 0, max: 1, integer: false},
     whatToAdd: [[{}]], //2d tile array
     whatToOverwrite: {chars: [true], times: [true], timeBase: [true], behavior: [true], colorGroup: [true], stateNumber: [true]}, //add later
+    hasSelection: false,
     selection: [[0, 0], [0, 0]], //top left x,y; bottom right x,y
     selectedTiles: [[{}]],
     startPosData: {} //player object
@@ -969,13 +1046,23 @@ function exportRaw(){
     window.alert("Copied to clipboard");
 }
 function importRaw(data){
-    level = JSON.parse(data);
+    try {
+        var tempLevel = JSON.parse(data);
+        if (tempLevel){
+            level = JSON.parse(data)
+        }
+        else {
+            window.alert("Are you fucking stupid?");
+        }
+    } catch (ee) {
+        window.alert(`Import error ${ee}`);
+    }
 }
 function addTiles(y, x){
     changeEditorLength(Math.max(editorStates.whatToAdd.length + x, level.tiles[0].length));
     for (let i = 0; i < editorStates.whatToAdd.length; i++){
         for (let j = 0; j < editorStates.whatToAdd[0].length; j++){
-            if (y+j >= 0 && x+i < level.tiles[0].length){
+            if (y+j >= 0 && x+i < level.tiles[0].length && exists(editorStates.whatToAdd[j][i])){ //temporary fix... replacement options to be added later, or never
                 var thisTile = editorStates.whatToAdd[j][i];
                 if (level.speedChanges.map(a => a[0]).indexOf(x+i) != -1 && level.speedChanges[level.speedChanges.map(a => a[0]).indexOf(x+i)][2] == y+j){ //remove (overwrite) speed changes
                     level.speedChanges = removeNthElement(level.speedChanges, level.speedChanges.map(a => a[0]).indexOf(x+i));
@@ -1008,6 +1095,46 @@ function changeEditorLength(newlen){
         }
     }
 }
+var firstSelect = true;
+function selectTiles(x, y){
+    if (firstSelect){
+        editorStates.selection[0] = [x, y];
+        firstSelect = false;
+    }
+    else {
+        editorStates.selection[1] = [x, y];
+        if (editorStates.selection[0][0] > editorStates.selection[1][0]){
+            var c = editorStates.selection[0][0];
+            editorStates.selection[0][0] = editorStates.selection[1][0];
+            editorStates.selection[1][0] = c;
+        }
+        if (editorStates.selection[0][1] > editorStates.selection[1][1]){
+            var cc = editorStates.selection[0][1];
+            editorStates.selection[0][1] = editorStates.selection[1][1];
+            editorStates.selection[1][1] = cc;
+        } //fuck you
+        editorStates.mode = "add";
+        editorStates.hasSelection = true;
+        firstSelect = true;
+        editorStates.selectedTiles = [];
+        for (let i = editorStates.selection[0][0]; i <= editorStates.selection[1][0]; i++){
+            editorStates.selectedTiles.push([]);
+            for (let j = editorStates.selection[0][0]; j <= editorStates.selection[1][0]; j++){
+                editorStates.selectedTiles[i-editorStates.selection[0][0]].push(level.tiles[i][j]);
+            }
+        }
+        document.getElementById("selectbtn").style.display = "none";
+        document.getElementById("selectoptions").style.display = "inline-block";
+    }
+}
+function fillSelecion(){
+    var fillPattern = deletemode.checked ? [[null]] : editorStates.whatToAdd;
+    for (let i = editorStates.selection[0][0]; i <= editorStates.selection[1][0]; i++){
+            for (let j = editorStates.selection[0][1]; j <= editorStates.selection[1][1]; j++){
+                level.tiles[i][j] = fillPattern[i % fillPattern.length][j % fillPattern[0].length]
+            }
+        }
+}
 var inLevel = false;
 var levelLoopId;
 function playLevel(level){
@@ -1031,9 +1158,12 @@ function exitLevel(){
 }
 
 
-var settings = {
-    autoRetry: true,
-    sex: false 
+var savefile = {
+    settings: {
+        autoRetry: true,
+        sex: false 
+    },
+    savedObjects: Array(16) 
 };
 ///////////////////////////////
 //     html constructors     //
@@ -1162,6 +1292,8 @@ function removeTileRow(){
 function syncTileRows(){
     //used when loading a tile(s) into the tile editor
     if (editorStates.whatToAdd.length == 1 && editorStates.whatToAdd[0].length == 1){ //one tile being loaded, make rows
+        document.getElementById("singletile").style.display = "inline-block";
+        document.getElementById("multitile").style.display = "none";
         var selectedTile = editorStates.whatToAdd[0][0];
         //adjust row number
         while (activeTileRows < selectedTile.chars.length){
@@ -1180,11 +1312,8 @@ function syncTileRows(){
         syncSelectors();
     }
     else { //multile tiles being loaded, use multiple selection dialog
-    /*
-        <div>Multiple tiles selected
-            Click below to reurn to tile editor (removes selection)
-            Return
-    */
+        document.getElementById("singletile").style.display = "none";
+        document.getElementById("multitile").style.display = "inline-block";
     }
 }
 function goToTileRowPage(page){
@@ -1211,7 +1340,7 @@ buildSelector("ttarget1", "target1", Object.keys(defaultValues), "buildSelector(
 buildSelector("tvblendx", "tvblendx", blendModes, "tvblend.value = selections.tvblendx"); //silly workaround
 function openTriggerMenu(pos){
     document.getElementById("tvalue").style.display = "block";
-    document.getElementById(`tvalue-${typeMap[selections.ttarget2]}`).style.display = "inline";
+    document.getElementById(`tvalue-${typeMap[editorStates.tempTrigger.target2]}`).style.display = "inline";
     editorStates.triggerPosition = pos;
 }
 function addTrigger(){
@@ -1269,6 +1398,46 @@ function buildChartable(page){
 }
 var chartablePage = 0;
 buildChartable(0);
+var savingCustom = false;
+var savingFromSelection = false;
+var killyourself = 1;
+for (let i = 0; i < 2; i++){
+    var r = document.getElementById("savedobjs").appendChild(document.createElement("tr"));
+    for (let j = 0; j < 8; j++){
+        var c = r.appendChild(document.createElement("td"));
+        c.textContent = String.fromCharCode(65 + j + 8*i); //uppercase letters
+        c.addEventListener("click", () => {
+            if (!savingCustom){
+                editorStates.whatToAdd = savefile.savedObjects[j + 8*i];
+            }
+            else if (savingFromSelection){
+                savefile.savedObjects[j + 8*i] = editorStates.selectedTiles;
+                savingCustom = false;
+            }
+            else {
+                savefile.savedObjects[j + 8*i] = editorStates.whatToAdd;
+                savingCustom = false;
+            }
+        });
+        c.addEventListener("mouseenter", () => {
+            //create tiles
+            var instring = "";
+            if (!savefile.savedObjects[j + 8*i]) {return;}
+            for (var u of savefile.savedObjects[j + 8*i]){
+                for (var v of u){
+                    instring += (v && exists(v)) ? `<span style="color: ${noprevColors[v.colorGroup[0]]}">${v.chars[0]}</span>` : "&nbsp;";
+                }
+                instring += "<br>"
+            }
+            document.getElementById("savedobjpreview").innerHTML = instring;
+            document.getElementById("savedobjpreview").style.display = "block";
+        });
+        c.addEventListener("mouseleave", () => {
+            document.getElementById("savedobjpreview").style.display = "none";
+        });
+    }
+}
+var noprevColors = [null, "rgb(255 0 0)", "rgb(255 156 0)", "rgb(255 255 0)", "rgb(131 255 0)", "rgb(0 255 131)", "rgb(0 190 255)", "rgb(0 0 255)", "rgb(187 0 255)", "rgb(255 0 212)"];
 ///////////////////////////////
 //      handling stuff       //
 ///////////////////////////////
@@ -1276,7 +1445,24 @@ buildChartable(0);
 function tileHoverHandler(x, y, press){ //x and y are display coords, press is true when this is called from a click (false when called from hover)
     y += editorStates.x;
     if (currentTab == "edit" && (isMouseDown || press)){
-        addTiles(x, y);
+        switch (editorStates.mode) {
+            case "add":
+                if (deletemode.checked) {
+                    level.tiles[x][y] = null;
+                    if (level.speedChanges.map(a => a[0]).indexOf(y) != -1 && level.speedChanges[level.speedChanges.map(a => a[0]).indexOf(y)][2] == x){ //remove (overwrite) speed changes
+                        level.speedChanges = removeNthElement(level.speedChanges, level.speedChanges.map(a => a[0]).indexOf(y));
+                    }
+                } 
+                else {
+                    addTiles(x, y);
+                }
+                break;
+            case "select":
+                if (press){
+                    selectTiles(x, y);
+                }
+                break;
+        }
     }
 }
 
@@ -1302,6 +1488,10 @@ document.addEventListener("mousedown", function(e){
 document.addEventListener("mouseup", function(e){
     isMouseDown = false;
     mouseReleased = true //cleared on every logic frame
+});
+document.addEventListener("mousemove", function(e){
+    document.getElementById("savedobjpreview").style.top = `${e.y}px`;
+    document.getElementById("savedobjpreview").style.left = `${e.x}px`;
 });
 </script>
 </html>
