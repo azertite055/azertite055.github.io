@@ -203,6 +203,9 @@
         background-color: black !important;
         cursor: pointer;
     }
+    #savedobjs tr td {
+        background-color: white;
+    }
     #triggerrow .gametile{
         text-shadow: 1px 1px white, -1px 1px white, 1px -1px white, -1px -1px white;
     }
@@ -215,6 +218,11 @@
         display: none;
         background-color: white;
         z-index: 100;
+        transform: translate(8px, -16px);
+    }
+    .mini {
+        font-size: 11px;
+        font-weight: 800;
     }
 </style>
 </head>
@@ -294,10 +302,10 @@
                     </span>
                 </td>
                 <td class="kys">
-                    &nbsp;| Duration: <input type="number" name="tlength" id="tlength" step="1" min="1" size="10"/> ms |&nbsp;
+                    &nbsp;| Duration: <input type="number" name="tlength" id="tlength" step="1" min="1" size="10"/> |&nbsp;
                 </td>
                 <td class="kys">
-                    Offset: <input type="number" name="toffset" id="toffset" step="1" min="1" size="10"/> ms |&nbsp;
+                    Offset: <input type="number" name="toffset" id="toffset" step="1" min="1" size="10"/> |&nbsp;
                 </td>
                 <td class="kys">
                     <span onclick="addTrigger(); " class="clickable">Submit</span>
@@ -327,20 +335,22 @@
                         <div class="clickable" onclick="editorStates.whatToAdd = editorStates.selectedTiles; syncTileRows();">Use as object</div>
                         <div class="clickable" onclick="fillSelecion()">Fill with object</div>
                         <div class="clickable" onclick="editorStates.hasSelection = false; document.getElementById('selectbtn').style.display = 'inline-block'; document.getElementById('selectoptions').style.display = 'none';">Deselect</div>
-                        <div class="clickable" onclick="savingCustom=true, savingFromSelection=true">Save object</div>
+                        <div id="savesel" class="clickable" onclick="savingCustom=true; savingFromSelection=true; document.getElementById('savesel').textContent='Click on a slot so save'">Save selection</div>
                     </div>
                     <table id="savedobjs"></table>
-                    <div class="clickable" onclick="savingCustom=true, savingFromSelection=false">Save object</div>
-                    <div>Preview colors <input type="checkbox" name="previewcolors" id="previewcolors" checked="true"/></div>
+                    <div id="saveobj" class="clickable" onclick="savingCustom=true; savingFromSelection=false; document.getElementById('saveobj').textContent='Click on a slot so save'">Save current object</div>
+                    <div><input type="checkbox" name="previewcolors" id="previewcolors" checked="true"/> Preview colors</div>
+                    <div><input type="checkbox" name="previewmode" id="previewmode" checked="true"/> Property view: <span id="propviewtext">color</span></div>
                 </td>
                 <td id="chardialog">
                     <div class="mid">- Tile editor -</div>
                     <div id="singletile">
-                        <div class="mid"><span onclick="goToTileRowPage(tileRowPage-1);" style="cursor: pointer;">&lt;&lt;</span> | <span onclick="goToTileRowPage(tileRowPage+1);" style="cursor: pointer;">&gt;&gt;</span></div>
+                        <div class="mid"><span class="clickable" onclick="goToTileRowPage(tileRowPage-1);">&lt;&lt;</span>&nbsp;&nbsp;&nbsp;<span class="clickable" onclick="goToTileRowPage(tileRowPage+1);">&gt;&gt;</span></div>
+                        <div class="mini mid">Character/Color/State length/Behavior</div>
                         <table id="charcontainer"></table>
                         <div class="mid">
-                            <span class="clickable" onclick="addNewTileRow()">Add&nbsp;character</span> | 
-                            <span class="clickable" onclick="removeTileRow()">Remove&nbsp;character</span>
+                            <span class="clickable" onclick="addNewTileRow()">Add&nbsp;state</span> | 
+                            <span class="clickable" onclick="removeTileRow()">Remove&nbsp;state</span>
                         </div>
                         <div class="mid">Start of oscillation:<input type="number" name="tiletimebase" id="tiletimebase" min="0" step="1" size="9" onchange="editorStates.tempTile.timeBase=Number(tiletimebase.value)"/></div>
                         <div class="mid clickable" onclick="editorStates.whatToAdd=[[editorStates.tempTile]]">Use tile</div>
@@ -352,7 +362,7 @@
                         <br>
                     </div>
                     <br>
-                    <div> Delete mode <input type="checkbox" name="deletemode" id="deletemode"/></div>
+                    <div><input type="checkbox" name="deletemode" id="deletemode"/> Delete mode</div>
                 </td>
                 <td id="chartable">
                     <div class="mid">- Character table -<br>
@@ -382,20 +392,20 @@ var player1 = {
     y: 3, ySub: 0, vy: 0, //y increases downward, n|1200 = n+1|0
     mode: 0, gravity: 1,
     bufferCheck: true, previousTile: false, previousY: 3,
-    dashing: false, fallTimer: 6, flag1: false
+    dashing: false, fallTimer: 6, var1: 0
 };
 var player2 = {
     y: 3, ySub: 0, vy: 0, //x and y values have subunits of 1/1200, the actual position is always rounded down
     mode: 0, gravity: -1,
     bufferCheck: true, previousTile: false, previousY: 3,
-    dashing: false, fallTimer: 6, flag1: false
+    dashing: false, fallTimer: 6, var1: 0
 };
 var commonStates = {
     height: 10, width: 100,
     x: 0, speed: 1, xSub: 0, frame: 0,
-    colorMain: [0, 0, 0, 1], colorGlow: [0, 0, 0, 0],
-    P2Active: false
+    P2Active: false,
 }
+var practicePoints = []; //practice checkpoints are stored as [p1, p2, common states]
 var defaultPlayer = structuredClone(player1);
 var defaultCommonStates = structuredClone(commonStates);
 var speedValues = [100, 125, 160, 200, 240];
@@ -419,7 +429,7 @@ var renderOffset = 0; //at the beginning and the end of a level, the player need
     time: duration of transition in frames (ms)
     trigger object:
     {(target1 as keys)]: {(target2 as keys): [(sparse array indexed by xpos) ...,[value, offset, time],...]}}
-    + add a macro into the editor for creating multiple triggers at once that set the specified target1's properties to those defined in the style dialog
+    + preview triggers from other targets on the trigger line?
 */
 var testTile = {
     chars: [],
@@ -547,10 +557,11 @@ function stateAt(tile, frame){
         soFar += tile.times[index];
         index++;
     }
+    if (index == 0) {index = tile.times.length-1} //
     return {char: tile.chars[index-1], behavior: tile.behavior[index-1], colorGroup: tile.colorGroup[index-1]};
 }
 function tilePropertyRelative(dx, dy, pl, pr){
-    if (pl.y + dy*pl.gravity < 0 || pl.y + dy*pl.gravity >= level.height || commonStates.x + dx < 0 || commonStates.x + dx >= level.width){
+    if (pl.y + dy*pl.gravity < 0 || pl.y + dy*pl.gravity >= level.tiles.length || commonStates.x + dx < 0 || commonStates.x + dx >= level.tiles[0].length){
         return false;
     }
     //returns the behavior of a tile by a position relative to the player (y coord. adjsted with gravity, down is positive)
@@ -575,7 +586,7 @@ function render(){
         editorStates.editorSubpixel -= 1200*distance;
     } 
     renderOffset = Math.max(commonStates.x - currentValues.common.playerColumn, 0);
-    renderOffset = Math.min(renderOffset, level.width - gameWidth + currentValues.common.playerColumn - 1); //the -1 might not be needed, i just left like it -- check this later
+    renderOffset = Math.min(renderOffset, level.tiles[0].length - gameWidth + currentValues.common.playerColumn - 1); //the -1 might not be needed, i just left like it -- check this later
     if (currentTab == "edit"){
         renderOffset = editorStates.x;
     }
@@ -597,6 +608,9 @@ function render(){
                 currentElement.style.color = arrayToRGB(currentColor.rgbaMain);
                 currentElement.style.textShadow = `${currentColor.glowOffsetX}px ${currentColor.glowOffsetY}px ${currentColor.glowRadius}px ${arrayToRGB(currentColor.rgbaGlow)}`;
                 currentElement.style.mixBlendMode = currentColor.blend;
+                if (currentTab == "edit" && !previewcolors.checked){
+                    currentElement.style.color = previewmode.checked ? noprevColors[currentTile.colorGroup] : typeprevColors[currentTile.behavior];
+                }
             }
             else {
                 document.getElementById(`${i}x${j}`).textContent = "\xa0"; //regular spaces may disappear so we use a non-breaking one instead to be sure
@@ -607,7 +621,7 @@ function render(){
     //render player
     if (currentTab != "edit"){
         document.getElementById(`${player1.y - player1.gravity + (player1.ySub > 1000 ? player1.gravity : 0)}x${commonStates.x - renderOffset}`).textContent = playerIcons[player1.mode];
-        if (commonStates.P2Active) {document.getElementById(`${player2.y - (player2.ySub > 200 ? 0 : player2.gravity)}x${commonStates.x - renderOffset}`).textContent = playerIcons[player2.mode];}
+        if (commonStates.P2Active) {document.getElementById(`${player2.y - player2.gravity + (player2.ySub > 1000 ? player2.gravity : 0)}x${commonStates.x - renderOffset}`).textContent = playerIcons[player2.mode];}
     }
     if (currentTab == "edit"){
         for (let i = 0; i < gameWidth; i++){
@@ -645,20 +659,52 @@ function render(){
                     }
                 }
             }
+            if (editorStates.mode == "select" && !firstSelect){
+                document.getElementById(`e${editorStates.selection[0][0]}x${editorStates.selection[0][1]-renderOffset}`).classList.add("selected"); //when you select the first
+            }
+            document.getElementById("propviewtext").textContent = previewmode.checked ? "color" : "behavior";
+            //custom object preview
+            if (shownPreview > 0 && savefile.savedObjects[shownPreview]){
+                for (let i = 0; i < savefile.savedObjects[shownPreview].length; i++){
+                    for (let j = 0; j < savefile.savedObjects[shownPreview][0].length; j++){
+                        var w = stateAt(savefile.savedObjects[shownPreview][i][j], currentRenderer); //currentrenderer stores the timestamb generated by th eanimation frame of th erender function so it functions as a global timer, division is due to units 
+                        if (w && w.behavior == "default"){
+                            w.behavior = "none";
+                            if (solidTiles.includes(w.char)){w.behavior = "solid"}
+                            if (semisolidTiles.includes(w.char)){w.behavior = "semisolid"}
+                            if (deadlyTiles.includes(w.char)){w.behavior = "kill"}
+                            if (specialTiles.includes(w.char)){w.behavior = "default"}
+                        }
+                        try {
+                            document.getElementById(`pre${i}x${j}`).style.color = previewmode.checked ? noprevColors[w.colorGroup] : typeprevColors[w.behavior];
+                            document.getElementById(`pre${i}x${j}`).textContent = exists(savefile.savedObjects[shownPreview][i][j]) ? w.char : "\xa0";
+                        }
+                        catch(ee) {/* kill yourself */}
+                    }
+                }
+            }
+            // non preview screen renderer
+
         }
         pressedKeys = [];
         releasedKeys  = [];
         mousePressed = false;
         mouseReleased = false;
     }
-    //render bg
+    //render bg/fg
     var element = document.getElementById("gameBackground");
     var values = currentValues.bg;
     element.style.backgroundImage = `linear-gradient(${values.gradAngle}deg, ${arrayToRGB(values.c1)} ${values.grad1}%, ${arrayToRGB(values.c2)} ${values.grad2}%)`;
+    if (currentTab == "edit" && !previewcolors.checked){
+        element.style.backgroundImage = "linear-gradient(white)";
+    }
     element = document.getElementById("gameForeground");
     values = currentValues.fg;
     element.style.backgroundImage = `linear-gradient(${values.gradAngle}deg, ${arrayToRGB(values.c1)} ${values.grad1}%, ${arrayToRGB(values.c2)} ${values.grad2}%)`;
     element.style.mixBlendMode = values.blend;
+    if (currentTab == "edit" && !previewcolors.checked){
+        element.style.backgroundImage = "linear-gradient(trnasparent)";
+    }
     currentRenderer = window.requestAnimationFrame(render);
 }
 function drawLineGraphPart(target, ratio){
@@ -798,13 +844,15 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
                     pl.ySub = 1199;
                     vyTemp = 0;
                     let dy = 0;
-                    while (tilePropertyRelative(0, dy, "behavior") != "solid"){
-                        dy += gravity;
-                        if (pl.y+dy < 0 || pl.y+dy > gameHeight){
+                    while (tilePropertyRelative(0, dy, pl, "behavior") != "solid"){
+                        console.log(dy);
+                        console.log(dy*pl.gravity + pl.y);
+                        dy++;
+                        if (pl.y+dy*pl.gravity < 0 || pl.y+dy*pl.gravity > gameHeight){
                             playLevel();
                         }
                     }
-                    pl.y += dy-gravity; 
+                    pl.y += dy*pl.gravity-pl.gravity; 
                 }
                 break;
             case 4:
@@ -813,7 +861,7 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
             case 5:
                 break;
             case 6:
-                if (landedFlang) {vyTemp = -120;}
+                if (landedFlang) {pl.var1 = 30}
                 break;
         }
         //orb interaction
@@ -837,13 +885,22 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
             pl.ySub = 1199;
             vyTemp = 0;
             let dy = 0;
-            while (tilePropertyRelative(0, dy, "behavior") != "solid"){
-                dy += gravity;
-                if (pl.y+dy < 0 || pl.y+dy > gameHeight){
+            while (tilePropertyRelative(0, dy, pl, "behavior") != "solid"){
+                console.log(dy);
+                console.log(dy*pl.gravity + pl.y);
+                dy++;
+                if (pl.y+dy*pl.gravity < 0 || pl.y+dy*pl.gravity > gameHeight){
                     playLevel();
                 }
             }
-            pl.y += dy-gravity; 
+            pl.y += dy*pl.gravity-pl.gravity; 
+        }
+        if (neighboringSpecailCharacters.includes("~")){
+            pl.dashing = true;
+        }
+        if (neighboringSpecailCharacters.includes("÷")){
+            pl.dashing = true;
+            pl.gravity *= -1;
         }
         pl.bufferCheck = false;
     }
@@ -862,12 +919,23 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
                 break;
             case 5:
                 break;
+            case 6:
+                pl.var1 = 0;
+                break;
         }
         pl.bufferCheck = true;
+        pl.dashing = false;
     }
     //calculate velocities
     if (pl.mode == 2){ //wave speed is handled outside normal means
         vyTemp = gravity*speedValues[commonStates.speed] * (isMouseDown ? -1 : 1);
+    }
+    if (pl.mode == 6 && pl.var1 > 0){ //robot jumps
+        vyTemp = -135;
+        pl.var1--;
+    }
+    if (pl.dashing){ //dash effect
+        vyTemp = 0;
     }
     pl.vy = vyTemp; 
     pl.ySub += pl.vy;
@@ -1038,7 +1106,7 @@ function importLevel(x){
             dataArray = dataArray.flatMap((d) => d == nextValue ? e : d);
             nextValue--;
         }
-        level = JSON.parse(dataArray.map((d) => String.fromCharCode(characterArray[d])).join(""));
+        importRaw(dataArray.map((d) => String.fromCharCode(characterArray[d])).join(""));
     });
 }
 function exportRaw(){
@@ -1052,16 +1120,16 @@ function importRaw(data){
             level = JSON.parse(data)
         }
         else {
-            window.alert("Are you fucking stupid?");
+            window.alert("Import error: no object found");
         }
     } catch (ee) {
-        window.alert(`Import error ${ee}`);
+        window.alert(`Import error: ${ee}`);
     }
 }
 function addTiles(y, x){
     changeEditorLength(Math.max(editorStates.whatToAdd.length + x, level.tiles[0].length));
-    for (let i = 0; i < editorStates.whatToAdd.length; i++){
-        for (let j = 0; j < editorStates.whatToAdd[0].length; j++){
+    for (let i = 0; i < editorStates.whatToAdd[0].length; i++){
+        for (let j = 0; j < editorStates.whatToAdd.length; j++){
             if (y+j >= 0 && x+i < level.tiles[0].length && exists(editorStates.whatToAdd[j][i])){ //temporary fix... replacement options to be added later, or never
                 var thisTile = editorStates.whatToAdd[j][i];
                 if (level.speedChanges.map(a => a[0]).indexOf(x+i) != -1 && level.speedChanges[level.speedChanges.map(a => a[0]).indexOf(x+i)][2] == y+j){ //remove (overwrite) speed changes
@@ -1178,7 +1246,7 @@ tileString += `<span id="gameBackground">${makeFiller()}</span><span id="gameFor
 tileString += "<span id='editorInterface'>";
 for (let i = 0; i < gameHeight; i++){
     for (let j = 0; j < gameWidth; j++){
-        tileString += `<span id="e${i}x${j}" class="editortile" onmouseenter="tileHoverHandler(${i},${j},false)" onclick="tileHoverHandler(${i},${j},true)">&nbsp;</span>`
+        tileString += `<span id="e${i}x${j}" class="editortile" onmouseenter="tileHoverHandler(${i},${j},false)" onmousedown="tileHoverHandler(${i},${j},true)">&nbsp;</span>`
     }
     tileString += "<br>"
 }
@@ -1400,7 +1468,7 @@ var chartablePage = 0;
 buildChartable(0);
 var savingCustom = false;
 var savingFromSelection = false;
-var killyourself = 1;
+var shownPreview = -1;
 for (let i = 0; i < 2; i++){
     var r = document.getElementById("savedobjs").appendChild(document.createElement("tr"));
     for (let j = 0; j < 8; j++){
@@ -1418,26 +1486,50 @@ for (let i = 0; i < 2; i++){
                 savefile.savedObjects[j + 8*i] = editorStates.whatToAdd;
                 savingCustom = false;
             }
+            document.getElementById("saveobj").textContent = "Save object";
+            document.getElementById("savesel").textContent = "Save selection";
         });
         c.addEventListener("mouseenter", () => {
             //create tiles
+            shownPreview = j + 8*i;
             var instring = "";
+            let n = 0;
+            let k = 0;
             if (!savefile.savedObjects[j + 8*i]) {return;}
             for (var u of savefile.savedObjects[j + 8*i]){
+                k = 0;
                 for (var v of u){
-                    instring += (v && exists(v)) ? `<span style="color: ${noprevColors[v.colorGroup[0]]}">${v.chars[0]}</span>` : "&nbsp;";
+                    var w = stateAt(v, currentRenderer/10); //currentrenderer stores the timestamb generated by th eanimation frame of th erender function so it functions as a global timer, division is due to units 
+                    if (w && w.behavior == "default"){
+                        w.behavior = "none";
+                        if (solidTiles.includes(w.char)){w.behavior = "solid"}
+                        if (semisolidTiles.includes(w.char)){w.behavior = "semisolid"}
+                        if (deadlyTiles.includes(w.char)){w.behavior = "kill"}
+                        if (specialTiles.includes(w.char)){w.behavior = "default"}
+                    }
+                    instring += (w && v && exists(v)) ? `<span id="pre${n}x${k}" display="block" style="color: ${previewmode.checked ? noprevColors[w.colorGroup] : typeprevColors[w.behavior]}">${w.char}</span>` : `<span id="pre${n}x${k}">&nbsp;</span>`;
+                    k++;
                 }
                 instring += "<br>"
+                n++;
             }
             document.getElementById("savedobjpreview").innerHTML = instring;
             document.getElementById("savedobjpreview").style.display = "block";
         });
         c.addEventListener("mouseleave", () => {
             document.getElementById("savedobjpreview").style.display = "none";
+            shownPreview = -1;
         });
     }
 }
 var noprevColors = [null, "rgb(255 0 0)", "rgb(255 156 0)", "rgb(255 255 0)", "rgb(131 255 0)", "rgb(0 255 131)", "rgb(0 190 255)", "rgb(0 0 255)", "rgb(187 0 255)", "rgb(255 0 212)"];
+var typeprevColors = {
+    solid: "rgb(0 0 0)",
+    semisolid: "rgb(64 64 128)",
+    kill: "rgb(255 0 0)",
+    special: "rgb(0 255 255)",
+    none: "rgb(220 220 220)",
+};
 ///////////////////////////////
 //      handling stuff       //
 ///////////////////////////////
