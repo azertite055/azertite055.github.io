@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Binary Tiling Life</title>
+<style>
+    html, body {margin: 0; height: 100%; overflow: hidden} /*stolen from stackoverflow*/
+body {
+	font-family: courier;
+	font-size: 12pt;
+    background-color: black;
+}
+.mid {
+    text-align: center;
+}
+table {
+	border: 1px solid black;
+	border-spacing: 0px;
+	margin-left: auto;
+	margin-right: auto;
+}
+td {
+	border: 1px solid black;
+	text-align: center;
+    vertical-align: top;
+}
+.clickable:hover{
+    text-decoration: underline;
+    text-shadow: black 0px 0px 1px;
+    cursor: pointer;
+}
+#main {
+    background-color: white;
+	width: 100%;
+	height: 100%;
+}
+#settings {
+    position: relative;
+    z-index: 100;
+    width: 320px;
+    background-color: white;
+}
+#rule, #rule tr, #rule td {
+    border: none;
+}
+#rule td:first-child {
+    text-align: right;
+}
+#stats td:first-child {
+    text-align: right;
+    border-right: 2px solid black;
+}
+#stats, #stats tr, #stats td{
+    border: none;
+}
+#stats td:nth-child(2) {
+    text-align: left;
+}
+#board{
+    position: relative;
+    background-color: transparent;
+}
+#container{
+    width: 512px;
+    height: 1024px;
+    position: relative;
+    line-height: 0;
+}
+#container span{
+    display: inline-block;
+    outline: 1px solid black;
+}
+#controls table tr:first-child{
+    font-weight: bold;
+}
+</style>
+</head>
+<body>
+    <table id="main"><tr>
+        <td id="settings">
+            <br>
+            <div class="mid">-=- Binary Tiling Life -=-</div>
+            <br>
+            <div class="mid">- Settings -</div>
+            <br>
+            <table id="rule"><td>(Rule)</td><td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td>
+            </tr><tr>
+            <td>Birth:</td>
+            <td><input type="checkbox" id="b0" name="b0" disabled></td>
+            <td><input type="checkbox" id="b1" name="b1"></td>
+            <td><input type="checkbox" id="b2" name="b2"></td>
+            <td><input type="checkbox" id="b3" name="b3"></td>
+            <td><input type="checkbox" id="b4" name="b4"></td>
+            <td><input type="checkbox" id="b5" name="b5"></td>
+            <td><input type="checkbox" id="b6" name="b6"></td>
+            <td><input type="checkbox" id="b7" name="b7"></td>
+            <td><input type="checkbox" id="b8" name="b8"></td>
+            </tr><tr>
+            <td>Survival:</td>
+            <td><input type="checkbox" id="s0" name="s0"></td>
+            <td><input type="checkbox" id="s1" name="s1"></td>
+            <td><input type="checkbox" id="s2" name="s2"></td>
+            <td><input type="checkbox" id="s3" name="s3"></td>
+            <td><input type="checkbox" id="s4" name="s4"></td>
+            <td><input type="checkbox" id="s5" name="s5"></td>
+            <td><input type="checkbox" id="s6" name="s6"></td>
+            <td><input type="checkbox" id="s7" name="s7"></td>
+            <td><input type="checkbox" id="s8" name="s8"></td>
+            </tr></table>
+            <br>
+            <div>Draw depth: <input type="number" id="depth" name="depth" min="1" max="16" step="1" value="6" onchange="buildBoard()"/></div>
+            <br>
+            <div>Vertical scale factor: <input type="number" id="vscale" name="vscale" min="0" step="0.01" value="0.5"/></div>
+            <br>
+            <div class="mid">- Control -</div>
+            <br>
+            <table id="controls"><tr>
+                <td><table>
+                        <tr>
+                            <td colspan="3">Move</td>
+                        </tr>
+                        <tr>
+                            <td class="clickable" onmousedown="moveVector=[-10, -10]" onmouseup="moveVector=[0,0]">&#129124;</td>
+                            <td id="mpy" class="clickable" onmousedown="moveVector[1]=-10" onmouseup="moveVector[1]=0">+y</td>
+                            <td class="clickable" onmousedown="moveVector=[10, -10]" onmouseup="moveVector=[0,0]">&#129125;</td>
+                        </tr>
+                        <tr>
+                            <td id="mmx" class="clickable" onmousedown="moveVector[0]=-10" onmouseup="moveVector[0]=0">-x</td>
+                            <td class="clickable" onclick="offsetX=250; offsetY=550;">R</td>
+                            <td id="mpx" class="clickable" onmousedown="moveVector[0]=10" onmouseup="moveVector[0]=0">+x</td>
+                        </tr>
+                        <tr>
+                            <td class="clickable" onmousedown="moveVector=[-10, 10]" onmouseup="moveVector=[0,0]">&#129127;</td>
+                            <td id="mmy" class="clickable" onmousedown="moveVector[1]=10" onmouseup="moveVector[1]=0">-y</td>
+                            <td class="clickable" onmousedown="moveVector=[10, 10]" onmouseup="moveVector=[0,0]">&#129126;</td>
+                        </tr>
+                    </table></td>
+
+                    <td><table>
+                        <tr>
+                            <td colspan="3">Navigation</td>
+                        </tr>
+                        <tr>
+
+                        </tr>
+                        <tr>
+                            <td class="clickable" onclick="if(boardpos.lastIndexOf(1) != -1){decrement(boardpos)}">&#129120;</td>
+                            <td class="clickable" onclick="boardpos=[]">Top</td>
+                            <td class="clickable" onclick="if(boardpos.lastIndexOf(0) != -1){increment(boardpos)}">&#129122;</td>
+                        </tr>
+                        <tr>
+                            <td id="dl" class="clickable" onclick="boardpos.push(0)">&#129127;</td>
+                            <td>&nbsp;</td>
+                            <td id="dr" class="clickable" onclick="boardpos.push(1)">&#129126;</td>
+                        </tr>
+                    </table></td>
+
+                    <td><table>
+                        <tr>
+                            <td colspan="3">Scale</td>
+                        </tr>
+                        <tr>
+                            <td class="clickable" onmousedown="scaleVector=[1/1.03, 1.03]" onmouseup="scaleVector=[1,1]">&#129124;</td>
+                            <td id="spy" class="clickable" onmousedown="scaleVector[1]=1.03" onmouseup="scaleVector[1]=1">+y</td>
+                            <td class="clickable" onmousedown="scaleVector=[1.03, 1.03]" onmouseup="scaleVector=[1,1]">&#129125;</td>
+                        </tr>
+                        <tr>
+                            <td id="smx" class="clickable" onmousedown="scaleVector[0]=1/1.03" onmouseup="scaleVector[0]=1">-x</td>
+                            <td class="clickable" onclick="sizeX=256; sizeY=256">R</td>
+                            <td id="spx" class="clickable" onmousedown="scaleVector[0]=1.03" onmouseup="scaleVector[0]=1">+x</td>
+                        </tr>
+                        <tr>
+                            <td class="clickable" onmousedown="scaleVector=[1/1.03, 1/1.03]" onmouseup="scaleVector=[1,1]">&#129127;</td>
+                            <td id="smy" class="clickable" onmousedown="scaleVector[1]=1/1.03" onmouseup="scaleVector[1]=1">-y</td>
+                            <td class="clickable" onmousedown="scaleVector=[1.03, 1/1.03]" onmouseup="scaleVector=[1,1]">&#129126;</td>
+                        </tr>
+                    </table></td>
+            </tr></table>
+            <br>
+            <div><span class="clickable" onclick="step();">[Step]</span>&nbsp;&nbsp;Autorun <input type="checkbox" id="autorun" name="autorun" onclick="if(autorun.checked){step();}"/></div>
+            <div>Auto speed: <input type="range" id="autospeed" name="autospeed" min="0" max="2" step="0.01" value="0"/></div>
+            <br>
+            <div class="clickable" onclick="cells=[[], [], 0];">[Clear board]</div>
+            <br><br>
+            <div class="clickable" onclick="xp()">[Export state]</div>
+            <div class="clickable" onclick="ip()">[Import state]</div>
+        </td>
+        <td id="board">
+            <div id="container"></div>
+        </td>
+    </tr></table>
+<script>
+
+var cells = [[], [], 0];
+//the cells are effectively in a binary tree [left child, right child, state]
+var tempCells = structuredClone(cells);
+var boardpos = [];
+var birthValues = [b0.checked, b1.checked, b2.checked, b3.checked, b4.checked, b5.checked, b6.checked, b7.checked, b8.checked];
+var survivalValues = [s0.checked, s1.checked, s2.checked, s3.checked, s4.checked, s5.checked, s6.checked, s7.checked, s8.checked];
+var sizeX = 256;
+var sizeY = 256; //height of the top cell, the full height is sizeY*(sum a geometric series)
+var offsetX = 250;
+var offsetY = 550;
+var centerX = document.getElementById("board").offsetHeight / 2;
+var centerY = document.getElementById("board").offsetWidth / 2;
+var moveVector = [0, 0];
+var scaleVector = [1, 1]; //multiplicative
+function arrayIndex(target, posarray){
+    for (let i of posarray){
+        if (target[i].length == 0) {return [[], [], 0];} else {target = target[i]}
+    }
+    return target;
+}
+function set(posarray, target){
+    for (let i of posarray){
+        if (target[i].length == 0) {target[i] = [[], [], 0]}
+        target = target[i];
+    }
+    target[2] = 1;
+}
+function unset(posarray, target){
+    var tempTarget = target;
+    if (arrayIndex(target, posarray)[2] == 0){return;}
+    for (let i of posarray){
+        target = target[i];
+    }
+    target[2] = 0;
+    target = tempTarget;
+    var del = false;
+    //remove unneeded branches to conserve memory
+    while (posarray.length > 0){
+        //if there is nothing below what we set to zero we can delete the array from the parent node 
+        if (del){
+            arrayIndex(target, posarray)[j] = [];
+        }
+        del = false;
+        if (arrayIndex(target, posarray)[0].length == 0 && arrayIndex(target, posarray)[1].length == 0 && arrayIndex(target, posarray)[2] == 0){
+            del = true;
+        }
+        j = posarray.pop();
+    }
+}
+function increment(posarray){
+    var addr = posarray.lastIndexOf(0);
+    if (addr == -1){ //overflow
+        posarray = posarray.fill(0);
+        posarray.push(0);
+        return posarray;
+    }
+    posarray[addr] = 1;
+    for (let i = addr+1; i < posarray.length; i++){
+        posarray[i] = 0;
+    }
+    return posarray;
+}
+function decrement(posarray){
+    var addr = posarray.lastIndexOf(1);
+    if (addr == -1){ //underflow
+        posarray = posarray.fill(1);
+        posarray.pop();
+        return posarray;
+    }
+    posarray[addr] = 0;
+    for (let i = addr+1; i < posarray.length; i++){
+        posarray[i] = 1;
+    }
+    return posarray; //these are kinda the same? but not exactly mergeable
+}
+function findNeighbors(posarray){
+    if (posarray.length == 0) {return [[0], [1]]} //edge case
+    var a = [];
+    for (let i = 0; i < 8; i++){
+        a.push(structuredClone(posarray));
+    }
+    decrement(a[0]);
+    a[0].pop();
+    if(a[0].length != posarray.length-1){a[0] = undefined}
+    decrement(a[1]);
+    a[1].pop();
+    increment(a[1]);
+    if(a[1].length != posarray.length-1){a[1] = undefined}
+    decrement(a[2]);
+    if(a[2].length != posarray.length){a[2] = undefined}
+    increment(a[3]);
+    if(a[3].length != posarray.length){a[3] = undefined}
+    a[4].push(0);
+    decrement(a[4]);
+    if(a[4].length != posarray.length+1){a[4] = undefined}
+    a[5].push(0);
+    if(a[5].length != posarray.length+1){a[5] = undefined}
+    a[6].push(0);
+    increment(a[6]);
+    if(a[6].length != posarray.length+1){a[6] = undefined}
+    increment(a[7]);
+    a[7].push(0);
+    if(a[7].length != posarray.length+1){a[7] = undefined}  //this shit is fucking retarded
+    return a.filter(x => !!x);
+}
+function step(){ //full
+    birthValues = [b0.checked, b1.checked, b2.checked, b3.checked, b4.checked, b5.checked, b6.checked, b7.checked, b8.checked];
+    survivalValues = [s0.checked, s1.checked, s2.checked, s3.checked, s4.checked, s5.checked, s6.checked, s7.checked, s8.checked];
+    tempCells = structuredClone(cells);
+    step_r([]);
+    if (autorun.checked){
+        setTimeout(step, 10**(3-Number(autospeed.value))); //(0, 2) -> (1000, 10)
+    }
+}
+function step_r(posarray){ //recursive part
+    var pointer = arrayIndex(tempCells, posarray);
+    if (pointer[0].length != 0){
+        posarray.push(0);
+        step_r(posarray);
+    }
+    if (pointer[1].length != 0){
+        posarray.push(1);
+        step_r(posarray); //enumerate recursively
+    }
+    step_c(posarray);
+    for (let i of findNeighbors(posarray)){
+        step_c(i);
+    }
+    posarray.pop();
+}
+function step_c(posarray){ //compute part
+    var holder = structuredClone(posarray); //ugh
+    var neighborCount = 0;
+    for (let i of findNeighbors(holder)){
+        neighborCount += arrayIndex(tempCells, i)[2];
+    }
+    if (arrayIndex(tempCells, holder)[2] == 0 && birthValues[neighborCount]){
+        set(holder, cells);
+    }
+    if (arrayIndex(tempCells, holder)[2] == 1 && !survivalValues[neighborCount]){
+        unset(holder, cells);
+    }
+}
+function buildBoard(){
+    var h = "";
+    var p = [];
+    for (let i = 0; i < Number(depth.value); i++){
+        for (let j = 0; j < 2**i; j++){
+            h += `<span id="c${p.join("")}" class="cell" style="width:${100*(0.5**i)}%;height:${200*(Number(vscale.value)**i)}px" onclick="
+                if (arrayIndex(cells, boardpos.concat([${p}]))[2]){
+                    unset(boardpos.concat([${p}]), cells);
+                }
+                else {
+                    set(boardpos.concat([${p}]), cells);
+                }
+            "></span>`;
+            p = increment(p);
+        }
+        h += "<br>";
+    }
+    document.getElementById("container").innerHTML = h;
+}
+function transformBoard(){
+    var fullHeight = sizeY * (1-Number(vscale.value)**Number(depth.value)) / (1-Number(vscale.value));
+    var co = document.getElementById("container");
+    co.style.width = `${sizeX}px`;
+    co.style.height = `${fullHeight}px`;
+    co.style.top = `${offsetX}px`;
+    co.style.left = `${offsetY}px`;
+    var p = [];
+    for (let i = 0; i < Number(depth.value); i++){
+        for (let j = 0; j < 2**i; j++){
+            var ce = document.getElementById(`c${p.join("")}`);
+            ce.style.height = `${100*(Number(vscale.value)**i) * sizeY / fullHeight}%`;
+            p = increment(p);
+        }
+    }
+}
+function render(){
+    var p = [];
+    for (let i = 0; i < Number(depth.value); i++){
+        for (let j = 0; j < 2**i; j++){
+            var ce = document.getElementById(`c${p.join("")}`);
+            ce.style.backgroundColor = arrayIndex(cells, boardpos.concat(p))[2] ? "blue" : "white";
+            p = increment(p);
+        }
+    }
+}
+function xp(){
+    navigator.clipboard.writeText(JSON.stringify(cells)).then(() => {
+		/* clipboard successfully set */
+		alert("State copied to clipboard");
+	}, () => {
+		/* clipboard write failed */
+		prompt("Copy state from here", JSON.stringify(cells));
+	});
+}
+function ip(){
+    cells=JSON.parse(prompt("Enter cell string"))
+}
+buildBoard();
+setInterval(()=>{
+    offsetX += moveVector[1] + (scaleVector[1]-1)*(offsetX-centerX); //a little fucky but should work approximately as expected (it doesn't)
+    offsetY += moveVector[0] + (scaleVector[0]-1)*(offsetY-centerY);
+    sizeX *= scaleVector[0];
+    sizeY *= scaleVector[1];
+    transformBoard();
+    render();
+    document.getElementById("container").style.borderTop = (boardpos.length == 0) ? "6px double black" : "none";
+    document.getElementById("container").style.borderLeft = (boardpos.lastIndexOf(1) == -1) ? "6px double black" : "none";
+    document.getElementById("container").style.borderRight = (boardpos.lastIndexOf(0) == -1) ? "6px double black" : "none";
+}, 20);
+
+</script>
+</body>
