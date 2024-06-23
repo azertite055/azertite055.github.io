@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en-us">
+    <head>
+        <meta charset="utf-8">
+    </head>
+    <body>
+        <h1>Editor guide</h1>
+<img src="guide1.png" alt="(there's supposed to be a picture of the editor here)">
+<img src="guide2.png">
+<img src="guide3.png">
+<h2>1. selection header</h2>
+<div> Slot numbers allow you to choose what level to edit; there are 32 slots total. You can also see the best score and reset it, but that doesn't really matter for the ediotr</div>.
+<h2>2. editor movement controls</h2>
+<div> The middle number shows the current left edge X position and current level length. <br>
+Hold down the arrows to move the editor left or right; the double arrow is 10 times faster</div>
+<h2>3. Editor display</h2>
+<div>This shows a live preview of the level, and in order to do anything, you have to click the tiles here</div>.
+<h2>4. trigger row </h2>
+<div> To add triggers that change various lever properties, you have to first select the trigger target (like a color, etc.) using the "target" selector, then the exact property with the other selector. After this, you click on the row above to add a trigger that will activate at the specified position and will open the trigger option menu (see Section 5). You can also click on an already existing trigger to edit it.
+The trigger row will also show a live preview of the triggger's value over the X position and show the location of triggers with a circle. For numeric types, a line graph is shown</div>.
+<h2>5. Trigger Options</h2>
+<div> When you click to add a trigger, you'll see the options appear here. By default, it is empty; see Figure 5* for how it looks when you click on the trigger row<br>
+You can enter the values for the trigger here. "Value is what the eproerty will be set to, duration is how long this will take, and offset adds a dela before the trigger applies it seffect<br>
+The other options will only appear when they are needed, but they should be fairly self-explanatory. Note that you can paste between triggers of the same 'data type," e.g., numeric, color, etc., even if they have different targets. </div>
+<h2>6. saving submenu</h2>
+<div> You can manipulate the level's data here. export/import  JSON will create or take a text file, which can be rather large. An export/import file will create or take a compressed data file, which is much smaller but can take some time to encode. For JSON import, simply paste the text into the box, but for file import, you have to select the file first using the 'Choose file" button.
+All export and import functions read and write from the level in the currently opened slot. "Wipe level" will remove the level in the current slot. </div>
+<h2>7. Tools submenu</h2>
+<div> There are a variety of tools in this section, but the main tools require you to select some objects. To select some objects, click on the "select" option, then choose the two corners of the selection region on the editor display. (You can select a single tile by double-clicking it.) The selection will be shown in cyan outlines. When you have an active selection, the tool menu gains some extra options; see figure 7*<br>
+        The extra options are: "Use as object" sets the thing you place on click to the current selection; this can be multiple tiles too. "Fill with objet" will fill the selection with the object you're placing; if there are multiple objects, the selection will be filled in a tiled manner. "Save object" will allow you to save the selection as a custom object (see later in this section). The select option will turn into "Deselect, which will remove the selection. <br>
+For the custom object menu, when you click either Save Selection or Save Current Tile, it will prompt you to click one of the slots labeled A-P. Once you do, it will be saved, and you can hover over a slot to preview its contents and click on it to set your current tile to the thing stored there. <br>
+"Set start position" will allow you to set a point to playtest from, click the text, then choose a position on the editor display, and enter the requested values (see addendum).
+The bottom toggles are the display options; "preview mode" toggles between real visuals and visuals showing color based on tile properties; the bottom toggle sets what property will be displayed in non-preview mode.
+</div>
+<h2>8. tile submenu</h2>
+<div> You can set what tile you are adding to the editor here. The way tiles work is that they cycle through the given states, each of which lasts for a specified time. Use the options given in the menu to change them. <br>
+Character is what will be shown; you can enter up to two characters, but only the first one will be used. This is necessary for emoji support, so just deal with it. color group is what triggers it to transform under, behavior is how it interacts with the player, and state length is how much time this state lasts for<<br>
+You can also use add/remove state at the bottom. Make sure to click "Use tile" to actually set the tile you are using!
+At the bottom, you can toggle "delete mode."  It allows you to delete objects; don't forget about setting this because it overrides everything.
+</div>
+<h2>9. Character table</h2>
+<div>If you click on a character here, it will be copied to your clipboard. Characters are colored according to their default behavior (see addendum). Use the top arrows to change pages, or click on the single number to go to a specified code point. </div>
+<h2>Addendum</h2> 
+<h3>behaviro colors</h3>
+<div> white/pale: none<br> black/gray: solid, <br> bluish gray: semisolid (can stand on and jump through)<br> red: deadly<br> cyan: special effects (property must be set to "default" for the effect to be applied ingame)</div>
+<h3>gamemode numbers</h3>
+<div> 0:jumping icon (X)<br> 1.wave (>)<br> 2: gravity ball (O)<br> 3: spider (M)<br> 4: flappy bird (U)<br> 5: skateboard (Đ)</div>
+    <h2>AI summary which i decided to include for some reason</h2>
+    <div>
+        Editor Guide
+
+The editor guide is divided into nine sections, each covering a specific aspect of the editor's functionality.<br>
+<br>
+1. Selection Header<br>
+The selection header allows you to choose which level to edit, with 32 slots available. You can also view the best score and reset it, but this doesn't affect the editor.<br>
+<br>
+<br>2. Editor Movement Controls
+<br>The middle number displays the current left edge X position and current level length. To move the editor left or right, hold down the arrows, with double arrow being 10 times faster.
+<br>
+<br>3. Editor Display
+<br>This section shows a live preview of the level, and you must click on tiles to make changes.
+<br>
+<br>4. Trigger Row
+<br>To add triggers that change level properties, select the trigger target (e.g., color) using the "target" selector, then the exact property with the other selector. Click on an existing trigger to edit it. The trigger row shows a live preview of the trigger's value over the X position and displays the location of triggers with a circle.
+<br>
+<br>5. Trigger Options
+<br>When adding a trigger, you'll see options appear here. Enter values for the trigger, including what property will be set, duration, and offset. Other options will appear when needed.
+<br>
+<br>6. Saving Submenu
+<br>You can manipulate level data here, including exporting and importing JSON or compressed data files. Note that all export and import functions read and write from the currently open level slot.
+<br>
+<br>7. Tools Submenu
+<br>This section provides various tools for selecting objects. Click "select" to choose corners of a selection region on the editor display. You can select a single tile by double-clicking it. Extra options become available when you have an active selection.
+<br>
+<br>8. Tile Submenu
+<br>Set what tile you're adding to the editor here. Each tile cycles through states with specified durations. Use options to change states and character colors.
+<br>
+<br>9. Character Table
+<br>Click on a character here to copy it to your clipboard. Characters are colored according to their default behavior (see addendum).
+<br>
+<br>Addendum
+<br>
+<br>    Behavior colors: white/pale = none, black/gray = solid, bluish gray = semisolid, red = deadly, cyan = special effects
+<br>    Game mode numbers: 0 = jumping icon (X), 1 = wave (>), 2 = gravity ball (O), 3 = spider (M), 4 = flappy bird (U), 5 = skateboard (Đ)
+
+    </div>    
+</body>
+</html>
