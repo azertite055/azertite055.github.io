@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <title>Text Dash</title>
 <style>
+    * { box-sizing: border-box; min-width: 0; min-height: 0; } /* does this even fix anything? */
     .disable-select {
     -webkit-user-select: none;  
     -moz-user-select: none;    
@@ -24,9 +25,11 @@
         position: relative; /* needed to make absolute positioning work inside (it positions from the closest positioned ancestor) */
         border: 1px solid black;
         width: max-content;
+        overflow: hidden;
     }
     #game {
         text-align: left;
+        position: relative;
     }
     #triggerrow {
         display: block;
@@ -53,10 +56,18 @@
         background: transparent;
         width: max-content;
     }
-    .gametile {
+    .gametilecontainer, .gametile {
+        position: relative;
         display: inline-block;
-        background-color: transparent;
         z-index: 0;
+        background-color: transparent;
+    }
+    #game .gametile {
+        position: absolute;
+    }
+    #cttable .gametile {
+        position: absolute;
+        background-color: transparent;
     }
     #editorInterface {
         position: absolute;
@@ -142,17 +153,25 @@
         width: max-content;
         min-width: 30px;
         scrollbar-color: black white;
+        text-align: left;
+        z-index: 10000;
     }
     .selectionoption {
         border: 1px solid black;
         padding: 1px;
         cursor: pointer;
+        min-height: 1.2lh;
+        z-index: 10000;
+        margin-bottom: -1lh;
+    }
+    .ff-fix{
+        margin-bottom: 0 !important;
     }
     .selectionoption:hover {
         color: white;
         background-color: black;
     }
-    .kys { /*trick to force certain elements to be 'inline' (this class is to be applied to tables)*/
+    .kys { /*trick to force certain elements to be '"inline"' (this class is to be applied to tables)*/
         margin: auto;
         padding: 0;
         border: 0;
@@ -188,8 +207,9 @@
     #edittable{
         margin: 10px auto; 
     }
-    #edittable tr td {
+    #edittable td {
         padding: 2px;
+        vertical-align: top;
     }
     #cttable {
         border: 2px solid black;
@@ -224,11 +244,17 @@
         font-size: 11px;
         font-weight: 800;
     }
+    #triggerrow span.active {
+        outline: 4px solid cyan;
+    }
+    #playertile{
+        position: absolute;
+    }
 </style>
 </head>
 <body>
     <div class="mid">-=- Text Dash -=-</div>
-    <div class="mid">Click or press space to jump.</div><br>
+    <div class="mid">Click to jump.</div><br>
 
     <div class="mid" id="header">
         <span class="clickable" onclick="switchTab('main')">Main levels</span> | 
@@ -238,26 +264,63 @@
     </div><br>
 
     <div class="mid" id="main">
-        <div id="mainheader">Go to custom levels tab</div>
+        <div id="mainheader"><table class="kys"><tr class="kys">
+            <td class="kys">Level number: </td>
+            <td class="kys"><span id="mainlvid"></span></td>
+            <td class="kys">&nbsp;|&nbsp;Best: <span id="mainbest">0</span>%</td>
+            <td class="kys">&nbsp;|&nbsp;<span class="clickable" onclick="savefile.bests[levelID] = 0; savefile.attempts[levelID] = 0">Reset stats</span></td>
+        </tr></table></div>
     </div>
 
-    <div class="mid" id="custom">
-        <div id="customheader"><span class="clickable" onclick="playLevel(0)">Play</span> | Exit</div>
+    <div class="mid" id="gpstats">
+        <div>Attempt <span id="attemptcount">0</span></div>
+        <div><span id="percentage">0%</span></div>
+        <div id="customheader"><span class="clickable" onclick="playLevel(true, selections.slotnumber)">Play</span> | <span class="clickable" onclick="window.cancelAnimationFrame(currentRenderer); clearInterval(levelLoopId);">Stop</span></div>
     </div>
+    <div class="mid" id="custom">
+        
+    </div>
+    <div id="slotselect"><table class="kys"><tr class="kys">
+        <td class="kys">Slot number: </td>
+        <td class="kys"><span id="slotnumber"></span></td>
+        <td class="kys">&nbsp;|&nbsp;Best: <span id="custombest">0</span>%</td>
+        <td class="kys">&nbsp;|&nbsp;<span class="clickable" onclick="savefile.customBests[levelID] = 0; savefile.customAttempts[levelID] = 0">Reset stats</span></td>
+    </tr></table></div>
 
     <div class="mid" id="edit">
-        <div id="editheader">Slot number: 0</div>
         <div>
-            <span onmousedown="editorStates.velocity = -2000;" onmouseup="editorStates.velocity = 0;">&lt;&lt;</span>&nbsp;
-            <span onmousedown="editorStates.velocity = -200;" onmouseup="editorStates.velocity = 0;">&lt;</span>&nbsp;
-            <span>0/100</span>&nbsp;
-            <span onmousedown="editorStates.velocity = 200;" onmouseup="editorStates.velocity = 0;">&gt;</span>&nbsp;
-            <span onmousedown="editorStates.velocity = 2000;" onmouseup="editorStates.velocity = 0;">&gt;&gt;</span>
+            <span onmousedown="editorStates.velocity = -4000;" onmouseup="editorStates.velocity = 0;">&lt;&lt;</span>&nbsp;
+            <span onmousedown="editorStates.velocity = -400;" onmouseup="editorStates.velocity = 0;">&lt;</span>&nbsp;
+            <span id="editorpos">0</span>/<span id="editormax">100</span>&nbsp;
+            <span onmousedown="editorStates.velocity = 400;" onmouseup="editorStates.velocity = 0;">&gt;</span>&nbsp;
+            <span onmousedown="editorStates.velocity = 4000;" onmouseup="editorStates.velocity = 0;">&gt;&gt;</span>
         </div>
     </div>
 
     <div class="mid" id="settings">
-        <div id="settingsheader">Gameplay | Editor | Saving | Help</div>
+        <div id="settingsheader"><a href="editorguide.html">See the editor guide</a></div>
+        <table><tr>
+            <td>
+                <div>- Gameplay -</div>
+                <div>Auto-retry <input name="setautoretry" id="setautoretry" type="checkbox" onchange="savefile.settings.autoRetry = setautoretry.checked;" checked></div>
+                <div>Show attempts <input name="setshowatts" id="setshowatts" type="checkbox" onchange="savefile.settings.showAttempts = setshowatts.checked;" checked></div>
+                <div>Show percentage <input name="setshowperc" id="setshowperc" type="checkbox" onchange="savefile.settings.showPrecentage = setshowperc.checked;" checked></div>
+            </td>
+            <td>
+                <div>- Editor -</div>
+                Coming soon (or never lmao)
+            </td>
+            <td>
+                <div>- Global -</div>
+                <div>Display size: <input name="setdispsize" id="setdispsize" type="number" placeholder="12" onchange="savefile.settings.gameSize = Number(setdispsize.value); document.getElementById('container').style.fontSize = savefile.settings.gameSize+'px'"></div>
+            </td>
+            <td>
+                <div>- Savefile -</div>
+                <span class="clickable" onclick="exportRaw(savefile);">Export savefile</span><br>
+                <span class="clickable" onclick="importRaw(prompt('Enter savefile'), ()=>{loadSavefile(tempData)})">Import savefile</span><br>
+                <span class="clickable" onclick="localStorage.removeItem('newtestdashsave')">Wipe savefile</span><br>
+            </td>
+        </tr></table>
     </div>
 
     <div id="container" class="mid">
@@ -265,13 +328,12 @@
     </div>
 
     <div id="practice" class="mid">
-        <span id="practiceenter">Enter practic mode</span>
+        <span id="practiceenter" class="clickable" onclick="inPractice=true; document.getElementById('practiceactive').style.display='block';  document.getElementById('practiceenter').style.display='none';">Enter practice mode</span>
         <span id="practiceactive" style="display: none;">
-            Exit prctice mode<br>
-            Place checkpoint (x) | Remove checkpoint (c)
+            <span class="clickable" onclick="inPractice=false; document.getElementById('practiceactive').style.display='none';  document.getElementById('practiceenter').style.display='block';">Exit practice mode</span><br>
+            <span class="clickable" onclick="practicePoints.push([structuredClone(player1), structuredClone(player2), structuredClone(commonStates)]);">Place checkpoint (a)</span> | <span class="clickable" onclick="practicePoints.pop();">Remove checkpoint (s)</span>
         </span>
     </div>
-
     <div id="editorunder">
         <div class="mid">- Triggers -</div>
         <div id="triggerrow" class="mid disable-select"></div>
@@ -308,7 +370,28 @@
                     Offset: <input type="number" name="toffset" id="toffset" step="1" min="1" size="10"/> |&nbsp;
                 </td>
                 <td class="kys">
-                    <span onclick="addTrigger(); " class="clickable">Submit</span>
+                    <span onclick="addTrigger(); document.getElementById(`t${editorStates.triggerPosition}`).classList.remove('active');" class="clickable">Submit</span> |&nbsp;
+                </td>
+                <td class="kys"><span id="triggerdelete">
+                    <span onclick="level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][editorStates.x + editorStates.triggerPosition] = null;
+                                    document.getElementById(`t${editorStates.triggerPosition}`).classList.remove('active');
+                                    document.getElementById('tvalue').style.display = 'none';
+                                    document.getElementById(`tvalue-${typeMap[selections.ttarget2]}`).style.display = 'none';
+                    " class="clickable">Delete</span> |&nbsp;</span>
+                </td>
+                <td class="kys"><span id="triggercopy">
+                    <span onclick="editorStates.clipboardTrigger = [level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][editorStates.x + editorStates.triggerPosition], editorStates.tempTrigger.target1, editorStates.tempTrigger.target2]
+                    " class="clickable">Copy</span> |&nbsp;</span>
+                </td>
+                <td class="kys"><span id="triggerpaste">
+                    <span onclick="level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][editorStates.x + editorStates.triggerPosition] = structuredClone(editorStates.clipboardTrigger[0]);
+                    " class="clickable">Paste</span> |&nbsp;</span>
+                </td>
+                <td class="kys">
+                    <span onclick="document.getElementById('tvalue').style.display = 'none';
+                                    document.getElementById(`tvalue-${typeMap[selections.ttarget2]}`).style.display = 'none';
+                                    document.getElementById(`t${editorStates.triggerPosition}`).classList.remove('active');
+                    " id="triggercancel" class="clickable">Cancel</span> |&nbsp;
                 </td>
                 </tr></table>
             </span></div>
@@ -319,17 +402,17 @@
                     <div class="mid">- Saving -</div>
                     <div>[<span id="filename">No file</span>]</div>
                     <label for="infile" class="clickable">Choose file</label>
-                    <div class="clickable" onclick="navigator.clipboard.writeText(exportLevel());">Export file</div>
+                    <div class="clickable" onclick="exportLevel(level, 'map'+levelID);">Export file</div>
                     <input type="file" name="infile" id="infile" accept=".tdl" style="display: none;" onchange="
                     document.getElementById('filename').textContent = infile.files.length == 0 ? 'No file' : infile.files[0].name;
                     "/>
-                    <div class="clickable" onclick="importLevel(infile.files[0])">Import file</div>
-                    <div class="clickable" onclick="exportRaw()">Export JSON</div>
-                    <div class="clickable" onclick="importRaw(window.prompt('Paste level string'))">Import JSON</div>
+                    <div class="clickable" onclick="importLevel(infile.files[0], ()=>{level=tempData});">Import file</div>
+                    <div class="clickable" onclick="exportRaw(level)">Export JSON</div>
+                    <div class="clickable" onclick="importRaw(window.prompt('Paste level string'), ()=>{level=tempData});">Import JSON</div>
+                    <div class="clickable" onclick="for(let i=0; i<level.tiles.length; i++){level.tiles[i] = Array(25)} changeEditorLength(25); level.triggers = structuredClone(emptyTriggerObject);">Wipe level</div>
                 </td>
                 <td id="edittools">
                     <div class="mid">- Tools -</div>
-                    <div>Set start position</div>
                     <div id="selectbtn" class="clickable" onclick="editorStates.mode = 'select';">Select</div>
                     <div id="selectoptions" style="display: none;">
                         <div class="clickable" onclick="editorStates.whatToAdd = editorStates.selectedTiles; syncTileRows();">Use as object</div>
@@ -339,6 +422,7 @@
                     </div>
                     <table id="savedobjs"></table>
                     <div id="saveobj" class="clickable" onclick="savingCustom=true; savingFromSelection=false; document.getElementById('saveobj').textContent='Click on a slot so save'">Save current object</div>
+                    <div><span class="clickable" id="startpospart1" onclick="handleStartposSetter()">Set start position</span></div>
                     <div><input type="checkbox" name="previewcolors" id="previewcolors" checked="true"/> Preview colors</div>
                     <div><input type="checkbox" name="previewmode" id="previewmode" checked="true"/> Property view: <span id="propviewtext">color</span></div>
                 </td>
@@ -369,9 +453,9 @@
                     Click on a character to copy it.<br>
                     Characters with special gameplay effects are colored.</div>
                     <div class="mid">
-                        <span onclick="chartablePage-=1; buildChartable(chartablePage)" style="cursor: pointer;">&lt;&lt;</span> 
-                        <span id="ctrange"></span> 
-                        <span onclick="chartablePage+=1; buildChartable(chartablePage)" style="cursor: pointer;">&gt;&gt;</span>
+                        <span class="clickable" onclick="chartablePage-=1; buildChartable(chartablePage)" style="cursor: pointer;">&lt;&lt;</span> 
+                        <span class="clickable" onclick="chartablePage = Math.floor(parseInt(prompt('Go to code point (hexadecimal)'), 16)/128); buildChartable(chartablePage)" id="ctrange"></span> 
+                        <span class="clickable" onclick="chartablePage+=1; buildChartable(chartablePage)" style="cursor: pointer;">&gt;&gt;</span>
                     </div>
                 </td>
             </tr>
@@ -380,37 +464,42 @@
     </div>
     <input type="text" id="tvblend" name="tvblend" style="display: none;"/><!--don't worry about this-->
 <script>
+var startupFlag = true;
+var mainLevels = [];
 var gameWidth = 25;
 var gameHeight = 10;
-var tileString = "";
-
+var levelHeight = 10;
+var tileString = ""; //new idea: ditch y subunit and use time based rise/fall like old times
 ///////////////////////////////
 //       player stuff        //
 ///////////////////////////////
 
 var player1 = {
-    y: 3, ySub: 0, vy: 0, //y increases downward, n|1200 = n+1|0
+    y: 3, //y increases downward, n|1200 = n+1|0
     mode: 0, gravity: 1,
-    bufferCheck: true, previousTile: false, previousY: 3,
-    dashing: false, fallTimer: 6, var1: 0
+    bufferCheck: true, previousTile: false,
+    dashing: false, fallTimer: 4, var1: 0,
+    jumpTimer: 0, jumpFrames: 0, hoverFrames: 0,
 };
 var player2 = {
-    y: 3, ySub: 0, vy: 0, //x and y values have subunits of 1/1200, the actual position is always rounded down
+    y: 3, //x and y values have subunits of 1/1200, the actual position is always rounded down
     mode: 0, gravity: -1,
-    bufferCheck: true, previousTile: false, previousY: 3,
-    dashing: false, fallTimer: 6, var1: 0
+    bufferCheck: true, previousTile: false,
+    dashing: false, fallTimer: 4, var1: 0,
+    jumpTimer: 0, jumpFrames: 0, hoverFrames: 0,
 };
 var commonStates = {
     height: 10, width: 100,
     x: 0, speed: 1, xSub: 0, frame: 0,
     P2Active: false,
-}
+};
+var customLevel = false; 
+var levelID = 0;
 var practicePoints = []; //practice checkpoints are stored as [p1, p2, common states]
-var defaultPlayer = structuredClone(player1);
-var defaultCommonStates = structuredClone(commonStates);
 var speedValues = [100, 125, 160, 200, 240];
-var playerIcons = ["X", "O", ">", "M", "U", "Đ", "R"] //cube, ball, wave, spider, ufo, line fly, robot
-var gravityValues = [6, 5, 0, 6, 8, 0, 7];
+var playerIcons = ["X", "O", ">", "M", "U", "Đ"] //cube, ball, wave, spider, ufo, line fly
+var gravityValues = [8, 9, 0, 8, 7, 0];
+var jumpValues = [10, 0, 0, 0, 8, 0];
 
 var renderOffset = 0; //at the beginning and the end of a level, the player needs to slide in/out without the camera moving, this variable is used to control that 
 
@@ -423,13 +512,13 @@ var renderOffset = 0; //at the beginning and the end of a level, the player need
     *for special objects to have their intended effect, behavior must be set to default
     
     -- TRIGGER OBJECT DEFINITION --
-    target1: c1, c2, ..., c9, bg, fg, common
+    target1: c1, c2, ... c9, bg, fg, common
     target2: whatever that object may contain
-    offset: delay before the transition (ms)
-    time: duration of transition in frames (ms)
+    offset: delay before the transition (*10ms)
+    time: duration of transition in frames (*10ms)
     trigger object:
     {(target1 as keys)]: {(target2 as keys): [(sparse array indexed by xpos) ...,[value, offset, time],...]}}
-    + preview triggers from other targets on the trigger line?
+    classes are useless!!!!!!!!!!
 */
 var testTile = {
     chars: [],
@@ -466,6 +555,20 @@ var defaultValues = {
     fg: {c1: [255, 255, 255, 0], c2: [255, 255, 255, 0], gradAngle: 0, grad1: 0, grad2: 100, blend: "normal"},
     common: {playerColumn: 5}
 };
+var lastTriggerFrame = {
+    c1: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c2: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c3: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c4: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c5: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c6: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c7: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c8: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c9: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    bg: {c1: 0, c2: 0, gradAngle: 0, grad1: 0, grad2: 0},
+    fg: {c1: 0, c2: 0, gradAngle: 0, grad1: 0, grad2: 0, blend: 0},
+    common: {playerColumn: 0}
+}; //gosh this is SO inefficient maybe you should have the triggers saved as a key array somewere and generate these with given data whatever dude IDC
 var currentValues = structuredClone(defaultValues);
 var typeMap = {
     rgbaMain: "color", //rgba array
@@ -503,18 +606,17 @@ function ntoc(n){ //destroys alpha cannel (it's only used for setting color sele
 	return o;
 }
 var level = { //this will always hold the level being played/edited, we load them into this from a JSON file (?)
-    title: "default00",
-    tiles: Array(10),
+    version: "3.0.0",
+    tiles: Array(levelHeight),
     triggers: structuredClone(emptyTriggerObject),
-    width: 100,
-    height: 10,
     initialState: [],
-    speedChanges: [] //we want to keep track of this seperately to make trigger calculations easier [position, speed] (has to be sorted)
+    speedChanges: [], //we want to keep track of this seperately to make trigger calculations easier [position, speed] (has to be sorted)
     //there must only be one speed chnage per column (unique x), if you try to add more than 1 then only the firts one applies
     //doing this also means that we have to disallow speed changes in mulistate tiles and also assume that every speed change is necessary
+    startPosData: false,
 };
-for (let i = 0; i < level.height; i++) {
-    level.tiles[i] = new Array(100); //grr why does this have to be done
+for (let i = 0; i < levelHeight; i++) {
+    level.tiles[i] = new Array(gameWidth); //grr why does this have to be done
 }
 function clamp(a, min, max){ //goes throuh arrays recusively (???????)
     if (Array.isArray(a)){
@@ -540,7 +642,13 @@ function computeTriggerValue(target1, target2, x, subx, frame){
     var nextTrigger = nextIndex == -1 ? [defaultValues[target1][target2],1,0] : currentTriggers[nextIndex]; //value, duration, offset
     var currentIndex = currentTriggers.findLastIndex((e,i) => Array.isArray(e) && (i < nextIndex)); //this will be -1 if the trigger doesn't exist, in that case we use default values
     var currentTrigger = currentIndex == -1 ? [defaultValues[target1][target2],1,0] : currentTriggers[currentIndex];
-    var interpolationValue = clamp((frame - posToFrame(nextIndex, 0) - nextTrigger[2])/nextTrigger[1], 0, 1);
+    var currentTriggerFrame = currentTab == "edit" ? posToFrame(nextIndex, 0) : lastTriggerFrame[target1][target2];
+    var interpolationValue = clamp((frame - currentTriggerFrame - nextTrigger[2])/nextTrigger[1], 0, 1);
+
+    if(target1 == "bg" && target2 == "c2"){
+        console.log(frame, currentTriggerFrame);
+    }
+
     if (typeMap[target2] == "blend") {return nextTrigger[0];}
     if (typeMap[target2] == "color") {return Array(4).fill(1).map((a, b) => interpolationValue*nextTrigger[0][b] + (1-interpolationValue)*currentTrigger[0][b])}
     //it's a regular number otherwise
@@ -584,9 +692,11 @@ function render(){
         var distance = Math.floor(editorStates.editorSubpixel/1200);
         editorStates.x = Math.max(0, editorStates.x + distance);
         editorStates.editorSubpixel -= 1200*distance;
+        document.getElementById("editorpos").textContent = editorStates.x;
+        document.getElementById("editormax").textContent = level.tiles[0].length;
     } 
-    renderOffset = Math.max(commonStates.x - currentValues.common.playerColumn, 0);
-    renderOffset = Math.min(renderOffset, level.tiles[0].length - gameWidth + currentValues.common.playerColumn - 1); //the -1 might not be needed, i just left like it -- check this later
+    renderOffset = Math.max(commonStates.x - Math.floor(currentValues.common.playerColumn), 0); //update this to allow continuous offsets
+    renderOffset = Math.min(renderOffset, level.tiles[0].length - gameWidth);
     if (currentTab == "edit"){
         renderOffset = editorStates.x;
     }
@@ -594,7 +704,7 @@ function render(){
     //apply trigger effects (base off of frame number)
     for (var a of Object.keys(emptyTriggerObject)){
         for (var b of Object.keys(emptyTriggerObject[a])){
-            currentValues[a][b] = computeTriggerValue(a, b, renderOffset, currentTab == "edit" ? 0 : commonStates.xSub, renderFrame);
+            currentValues[a][b] = computeTriggerValue(a, b, renderOffset + Math.floor(currentValues.common.playerColumn), currentTab == "edit" ? 0 : commonStates.xSub, renderFrame);
         }
     }
     //render tiles
@@ -618,10 +728,28 @@ function render(){
             document.getElementById(`e${i}x${j}`).classList.remove("selected");
         }
     }
-    //render player
+    //render player, gameplay stats
     if (currentTab != "edit"){
-        document.getElementById(`${player1.y - player1.gravity + (player1.ySub > 1000 ? player1.gravity : 0)}x${commonStates.x - renderOffset}`).textContent = playerIcons[player1.mode];
-        if (commonStates.P2Active) {document.getElementById(`${player2.y - player2.gravity + (player2.ySub > 1000 ? player2.gravity : 0)}x${commonStates.x - renderOffset}`).textContent = playerIcons[player2.mode];}
+        document.getElementById(`${player1.y}x${commonStates.x - renderOffset}`).textContent = playerIcons[player1.mode];
+        document.getElementById(`${player1.y}x${commonStates.x - renderOffset}`).style.color = "black";
+        if (commonStates.P2Active) {
+            document.getElementById(`${player2.y}x${commonStates.x - renderOffset}`).textContent = playerIcons[player2.mode];
+            document.getElementById(`${player2.y}x${commonStates.x - renderOffset}`).style.color = "blue";
+        }
+        document.getElementById("attemptcount").textContent = customLevel ? savefile.customAttempts[levelID] : savefile.attempts[levelID];
+        document.getElementById("percentage").textContent = Math.floor(100*(commonStates.x + commonStates.xSub/1200)/level.tiles[0].length) + "%";
+        if (currentTab == "main"){
+            document.getElementById("mainbest").textContent = savefile.bests[levelID];
+        } else {
+            document.getElementById("custombest").textContent = savefile.customBests[levelID];
+        }
+    }
+    if (inPractice){ //render practice points
+        for (p of practicePoints){
+            if(p[2].x - renderOffset > 0 && p[2].x - renderOffset < gameWidth){
+                document.getElementById(`${p[0].y}x${p[2].x - renderOffset}`).textContent = "◊";
+            }
+        }
     }
     if (currentTab == "edit"){
         for (let i = 0; i < gameWidth; i++){
@@ -631,6 +759,7 @@ function render(){
             document.getElementById(`t${i}`).textContent = !!level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][i+renderOffset] ? "O" : "\xa0";
             switch (typeMap[editorStates.tempTrigger.target2]){
                 case "color":
+                    triggerElement.style.backgroundImage = "none"; //if we added lines prevously we removed them 
                     triggerElement.style.backgroundColor = arrayToRGB(thisTriggerValue);
                     break;
                 case "number":
@@ -679,17 +808,21 @@ function render(){
                             document.getElementById(`pre${i}x${j}`).style.color = previewmode.checked ? noprevColors[w.colorGroup] : typeprevColors[w.behavior];
                             document.getElementById(`pre${i}x${j}`).textContent = exists(savefile.savedObjects[shownPreview][i][j]) ? w.char : "\xa0";
                         }
-                        catch(ee) {/* kill yourself */}
+                        catch(ee) {/* this is only here because this likes to crash randomly, may be an evalation order issue */}
                     }
                 }
             }
-            // non preview screen renderer
-
+            //start pos.
+            if (level.startPosData && level.startPosData[2].x - renderOffset > 0 && level.startPosData[2].x - renderOffset < gameWidth){
+            document.getElementById(`${level.startPosData[0].y}x${level.startPosData[2].x - renderOffset}`).textContent = "S";
+            }
         }
-        pressedKeys = [];
-        releasedKeys  = [];
-        mousePressed = false;
-        mouseReleased = false;
+        if (!inLevel){
+            pressedKeys = [];
+            releasedKeys  = [];
+            mousePressed = false;
+            mouseReleased = false;
+        }
     }
     //render bg/fg
     var element = document.getElementById("gameBackground");
@@ -703,57 +836,58 @@ function render(){
     element.style.backgroundImage = `linear-gradient(${values.gradAngle}deg, ${arrayToRGB(values.c1)} ${values.grad1}%, ${arrayToRGB(values.c2)} ${values.grad2}%)`;
     element.style.mixBlendMode = values.blend;
     if (currentTab == "edit" && !previewcolors.checked){
-        element.style.backgroundImage = "linear-gradient(trnasparent)";
+        element.style.backgroundImage = "linear-gradient(transparent)";
     }
     currentRenderer = window.requestAnimationFrame(render);
 }
 function drawLineGraphPart(target, ratio){
     target.style.backgroundImage = `linear-gradient(0deg, white ${ratio*100 - 4}%, black ${ratio*100}%, white ${ratio*100 + 4}%)`;
 }
+
 //gameplay
 
 function physicsStep(pl){ //takes a player object (to allow for duals potentially)
-    //y subunit always increases with gravity, and it is negated when gravity is flipped
-    var vyTemp = pl.vy += gravityValues[pl.mode];
-    vyTemp = Math.min(vyTemp, 250);
     var currentTile = tilePropertyRelative(0, 0, pl, "behavior");
+    var currentSpecialCharacter = null;
+    if (tilePropertyRelative(0, 0, pl, "behavior") == "default"){
+        currentSpecialCharacter = tilePropertyRelative(0, 0, pl, "char");
+    }
     var neighboringTiles = []; 
-    var neighboringSpecailCharacters = [];
+    var neighboringSpecialCharacters = [];
     for (let i = -1; i < 2; i++){
         for (let j = -1; j < 2; j++){
             neighboringTiles.push(tilePropertyRelative(i, j, pl, "behavior"));
             if (tilePropertyRelative(i, j, pl, "behavior") == "default"){
-                neighboringSpecailCharacters.push(tilePropertyRelative(i, j, pl, "char"));
+                neighboringSpecialCharacters.push(tilePropertyRelative(i, j, pl, "char"));
             }
         }
     }
-    var canHitHead = neighboringSpecailCharacters.includes("H") || pl.mode == 1; 
-    var canWaveSlide = neighboringSpecailCharacters.includes("D");
+    var canHitHead = neighboringSpecialCharacters.includes("H") || pl.mode == 1 || pl.mode == 4; 
+    var canWaveSlide = neighboringSpecialCharacters.includes("D");
     var tileBelow = tilePropertyRelative(0, 1, pl, "behavior");
     var tileAbove = tilePropertyRelative(0, -1, pl, "behavior");
     var tileFront = tilePropertyRelative(1, 0, pl, "behavior");
     var landedFlang = false;
     //collisions
-    if (currentTile == "solid" && (pl.ySub < 250 || (pl.previousTile == false && (pl.y - pl.previousY)*pl.gravity > 0))){ //snap onto top when you clip slightly
-        pl.y -= pl.gravity;
-        pl.ySub = 1199;
-    }
-    if (tileBelow == "solid" && pl.ySub > 1150 && (pl.mode != 2 || (pl.mode == 2 && canWaveSlide))){ //snap onto block below for small distances
-        vyTemp = 0;
-        pl.ySub = 1199;
+    if ((tileBelow == "solid" || tileBelow == "semisolid") && pl.jumpFrames <= 0 &&
+    (pl.mode != 2 || (pl.mode == 2 && canWaveSlide))){ //stand on the floor
         landedFlang = true;
+        if (pl.jumpFrames == 0){
+            pl.jumpTimer = 0;
+        }
     }
-    if (tileAbove == "solid" && pl.ySub < 1000 && !canHitHead){ //hitting head
-        playLevel()
+    if (tileAbove == "solid" && canHitHead){ //hitting head
+        pl.jumpFrames = 0;
+        pl.hoverFrames = 0;
     }
-    if (pl.y < 0 || pl.y >= gameHeight){ //falling out of the level
-        playLevel()
+    if (pl.y < 0 || pl.y >= levelHeight){ //falling out of the level
+        die()
     }
-    if (deadlyTiles.includes(currentTile) || solidTiles.includes(currentTile)){ //crashing into something
-        playLevel()
+    if (currentTile == "kill" || (currentTile == "solid" && (commonStates.xSub < 900 && commonStates.xSub > 300))){ //crashing into something
+        die()
     }
     if (landedFlang){
-        pl.fallTimer = 6;
+        pl.fallTimer = 5;
     } else {
         pl.fallTimer--;
     }
@@ -762,145 +896,158 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
     }
     
     //special tile interaction
-    if (neighboringSpecailCharacters.includes("0")){ //fix this
+    if (neighboringSpecialCharacters.includes("0")){ //fix this
         commonStates.speed = 0;
     }
-    if (neighboringSpecailCharacters.includes("1")){
+    if (neighboringSpecialCharacters.includes("1")){
         commonStates.speed = 1;
     }
-    if (neighboringSpecailCharacters.includes("2")){
+    if (neighboringSpecialCharacters.includes("2")){
         commonStates.speed = 2;
     }
-    if (neighboringSpecailCharacters.includes("3")){
+    if (neighboringSpecialCharacters.includes("3")){
         commonStates.speed = 3;
     }
-    if (neighboringSpecailCharacters.includes("4")){
+    if (neighboringSpecialCharacters.includes("4")){
         commonStates.speed = 4;
     }
-    if (neighboringSpecailCharacters.includes("5")){
+    if (neighboringSpecialCharacters.includes("5")){
         commonStates.speed = 5;
     }
-    if (neighboringSpecailCharacters.includes("-") && pl.ySub > 800){
-        vyTemp = -180;
+    if (currentSpecialCharacter == "-"){
+        pl.jumpFrames = 3;
+        pl.hoverFrames = 2;
     }
-    if (neighboringSpecailCharacters.includes("=") && pl.ySub > 800){
+    if (currentSpecialCharacter == "="){
         pl.gravity *= -1;
+        pl.jumpFrames = 0;
+        pl.hoverFrames = 0;
         pl.y += pl.gravity;
-        pl.ySub = 1200 - pl.ySub;
-        vyTemp = 180;
     }
-    if (neighboringSpecailCharacters.includes(")")){
-        if (pl.gravity == -1) {pl.y += pl.gravity;}
+    if (neighboringSpecialCharacters.includes(")")){
         pl.gravity = 1;
-        pl.ySub = 1200 - pl.ySub;
     }
-    if (neighboringSpecailCharacters.includes("[")){
-        if (pl.gravity == 1) {pl.y += pl.gravity;}
+    if (neighboringSpecialCharacters.includes("[")){
         pl.gravity = -1;
-        pl.y += pl.gravity;
-        pl.ySub = 1200 - pl.ySub;
     }
-    if (neighboringSpecailCharacters.includes("X")){
+    if (neighboringSpecialCharacters.includes("X")){
         pl.mode = 0;
     }
-    if (neighboringSpecailCharacters.includes("O")){
+    if (neighboringSpecialCharacters.includes("O")){
         pl.mode = 1;
     }
-    if (neighboringSpecailCharacters.includes(">")){
+    if (neighboringSpecialCharacters.includes(">")){
         pl.mode = 2;
     }
-    if (neighboringSpecailCharacters.includes("M")){
+    if (neighboringSpecialCharacters.includes("M")){
         pl.mode = 3;
     }
-    if (neighboringSpecailCharacters.includes("U")){
+    if (neighboringSpecialCharacters.includes("U")){
         pl.mode = 4;
     }
-    if (neighboringSpecailCharacters.includes("Đ")){
+    if (neighboringSpecialCharacters.includes("Đ")){
         pl.mode = 5;
     }
-    if (neighboringSpecailCharacters.includes("R")){
-        pl.mode = 6;
+    if (neighboringSpecialCharacters.includes("ß")){
+        commonStates.P2Active = true;
+        player2.y = player1.y
+        player2.bufferCheck = true;
+        player2.dashing = player1.dashing;
+        player2.fallTimer = 0;
+        player2.gravity = -player1.gravity;
+        player2.hoverFrames = 0;
+        player2.jumpFrames = 0;
+        player2.mode = player1.mode;
+        player2.jumpTimer = 0;
     }
-
+    if (neighboringSpecialCharacters.includes("&")){
+        commonStates.P2Active = false;
+    }
     //click/hold interaction
     if (mousePressed || (isMouseDown && pl.bufferCheck)){
         switch (pl.mode){ //cube, ball, wave, spider, ufo, ???
             case 0:
-                if (landedFlang) {vyTemp = -150;}
+                if (landedFlang) {
+                    pl.jumpTimer = 0;
+                    pl.jumpFrames = 2;
+                    pl.hoverFrames = 1;
+                }
                 break;
             case 1:
                 if (landedFlang){
                     pl.gravity *= -1;
-                    pl.y += pl.gravity;
-                    pl.ySub = 1200 - pl.ySub;
                 }
                 break;
             case 2:
-                vyTemp = -pl.gravity*speedValues[pl.speed];
+                pl.jumpTimer = 0;
+                pl.jumpFrames = 9999;
+                pl.hoverFrames = 0;
                 break;
             case 3:
                 if (landedFlang){
                     pl.gravity *= -1;
-                    pl.ySub = 1199;
-                    vyTemp = 0;
                     let dy = 0;
                     while (tilePropertyRelative(0, dy, pl, "behavior") != "solid"){
-                        console.log(dy);
-                        console.log(dy*pl.gravity + pl.y);
                         dy++;
-                        if (pl.y+dy*pl.gravity < 0 || pl.y+dy*pl.gravity > gameHeight){
-                            playLevel();
+                        if (pl.y+dy*pl.gravity < 0 || pl.y+dy*pl.gravity > levelHeight){
+                            die();
                         }
                     }
                     pl.y += dy*pl.gravity-pl.gravity; 
                 }
                 break;
             case 4:
-                vyTemp = -120;
+                pl.jumpTimer = 0;
+                pl.jumpFrames = 2;
+                pl.hoverFrames = 0;
                 break;
             case 5:
-                break;
-            case 6:
-                if (landedFlang) {pl.var1 = 30}
+                pl.jumpTimer = 0;
+                pl.jumpFrames = 0;
+                pl.hoverFrames = 9999;
+                pl.gravity *= -1;
                 break;
         }
         //orb interaction
-        if (neighboringSpecailCharacters.includes("Q") && pl.mode != 2){
-            vyTemp = -150;
+        if (neighboringSpecialCharacters.includes("Q") && pl.mode != 2 && pl.mode != 5){
+            pl.jumpTimer = 0;
+            pl.jumpFrames = 2;
+            pl.hoverFrames = 1;
         }
-        if (neighboringSpecailCharacters.includes("@")){
+        if (neighboringSpecialCharacters.includes("@")){
             pl.gravity *= -1;
-            pl.y += pl.gravity;
-            pl.ySub = 1200 - pl.ySub;
-            if (pl.mode != 2) {vyTemp = 180;}
+            if (pl.mode != 2) {
+                pl.jumpFrames = 0;
+                pl.hoverFrames = 0;
+            }
         }
-        if (neighboringSpecailCharacters.includes("Ö")){
+        if (neighboringSpecialCharacters.includes("Ö")){
             pl.gravity *= -1;
-            pl.y += pl.gravity;
-            pl.ySub = 1200 - pl.ySub;
-            if (pl.mode != 2) {vyTemp = -150;}
+            if (pl.mode != 2 && pl.mode != 5){
+                pl.jumpTimer = 0;
+                pl.jumpFrames = 2;
+                pl.hoverFrames = 1;
+            }
         }
-        if (neighboringSpecailCharacters.includes("¤")){
+        if (neighboringSpecialCharacters.includes("¤")){
             pl.gravity *= -1;
-            pl.ySub = 1199;
-            vyTemp = 0;
             let dy = 0;
             while (tilePropertyRelative(0, dy, pl, "behavior") != "solid"){
-                console.log(dy);
-                console.log(dy*pl.gravity + pl.y);
                 dy++;
-                if (pl.y+dy*pl.gravity < 0 || pl.y+dy*pl.gravity > gameHeight){
-                    playLevel();
+                if (pl.y+dy*pl.gravity < 0 || pl.y+dy*pl.gravity > levelHeight){
+                    die();
                 }
             }
             pl.y += dy*pl.gravity-pl.gravity; 
         }
-        if (neighboringSpecailCharacters.includes("~")){
+        if (neighboringSpecialCharacters.includes("~")){
             pl.dashing = true;
+            pl.jumpFrames = 0;
         }
-        if (neighboringSpecailCharacters.includes("÷")){
+        if (neighboringSpecialCharacters.includes("÷")){
             pl.dashing = true;
             pl.gravity *= -1;
+            pl.jumpFrames = 0;
         }
         pl.bufferCheck = false;
     }
@@ -912,57 +1059,106 @@ function physicsStep(pl){ //takes a player object (to allow for duals potentiall
             case 1:
                 break;
             case 2:
+                pl.jumpFrames = 0;
+                pl.hoverFrames = 0;
                 break;
             case 3:
                 break;
             case 4:
                 break;
             case 5:
-                break;
-            case 6:
-                pl.var1 = 0;
+                pl.jumpFrames = 0;
+                pl.hoverFrames = 0;
                 break;
         }
         pl.bufferCheck = true;
         pl.dashing = false;
     }
-    //calculate velocities
-    if (pl.mode == 2){ //wave speed is handled outside normal means
-        vyTemp = gravity*speedValues[commonStates.speed] * (isMouseDown ? -1 : 1);
+    //calculate the movemets
+    let yDir = 1;
+    if (pl.hoverFrames > 0 || landedFlang || pl.dashing){yDir = 0}
+    if (pl.jumpFrames > 0){yDir = -1}
+    if (pl.jumpTimer <= 0){
+        pl.y += pl.gravity * yDir;
+        pl.jumpTimer = gravityValues[pl.mode];
+        if (pl.mode == 2 || pl.mode == 5){pl.jumpTimer = Math.floor(1200/speedValues[commonStates.speed])}
+        if (pl.jumpFrames == 0){
+            pl.hoverFrames--;
+        }
+        else {
+            pl.jumpFrames--;
+        }
     }
-    if (pl.mode == 6 && pl.var1 > 0){ //robot jumps
-        vyTemp = -135;
-        pl.var1--;
-    }
-    if (pl.dashing){ //dash effect
-        vyTemp = 0;
-    }
-    pl.vy = vyTemp; 
-    pl.ySub += pl.vy;
-    pl.previousY = pl.y;
-    if (pl.ySub > 1200) {pl.ySub -= 1200; pl.y += pl.gravity}
-    if (pl.ySub < 0) {pl.ySub += 1200; pl.y -= pl.gravity}
-    //console.log(pl.y, " ",pl.ySub);
+    pl.jumpTimer--;
     pl.previousTile = currentTile;
 }
+//attempt counter template (commonStates.customLevel ? savefile.customAttempts : savefile.attempts)[commonStates.levelID]
 function gameLoop(){
+    if (pressedKeys.includes("a")){
+        practicePoints.push([structuredClone(player1), structuredClone(player2), structuredClone(commonStates)]);
+    }
+    if (pressedKeys.includes("s")){
+        practicePoints.pop();
+    }
     physicsStep(player1);
     if (commonStates.P2Active) {physicsStep(player2)}
+    var lastX = structuredClone(commonStates.x);
     commonStates.xSub += speedValues[commonStates.speed];
     if (commonStates.xSub > 1200) {commonStates.xSub -= 1200; commonStates.x += 1}
     if (commonStates.xSub < 0) {commonStates.xSub += 1200; commonStates.x -= 1}
     commonStates.frame += 1;
+    for (let i of Object.keys(lastTriggerFrame)){
+        for (let j of Object.keys(lastTriggerFrame[i])){
+            if (level.triggers[i][j][commonStates.x] && commonStates.x > lastX){
+                lastTriggerFrame[i][j] = commonStates.frame;
+            }
+        }
+    }
+    if (commonStates.x >= level.tiles[0].length){ // level completion
+        win();
+    }
     pressedKeys = [];
     releasedKeys  = [];
     mousePressed = false;
     mouseReleased = false;
+}
+var replayerID = -42;
+function die(){
+    if (!inPractice && !level.startPosData){
+        if (customLevel){
+            savefile.customBests[levelID] = Math.max(savefile.customBests[levelID], Math.floor(100*(commonStates.x + commonStates.xSub/1200)/level.tiles[0].length));
+        } else {
+            savefile.bests[levelID] = Math.max(savefile.bests[levelID], Math.floor(100*(commonStates.x + commonStates.xSub/1200)/level.tiles[0].length));
+        }
+    }
+    if(!currentTab == "edit"){window.cancelAnimationFrame(currentRenderer);}
+    clearInterval(levelLoopId);
+    for (let i = 0; i < gameHeight; i++){
+        for (let j = 0; j < gameWidth; j++){
+            document.getElementById(`${i}x${j}`).textContent = "\xa0";
+        }
+    }
+    if (savefile.settings.autoRetry && inLevel){
+        replayerID = setTimeout(playLevel, 200, customLevel, levelID);
+    }
+}
+function win(){
+    if (!inPractice && !level.startPosData){
+        if (customLevel){
+            savefile.customBests[levelID] = 100;
+        } else {
+            savefile.bests[levelID] = 100;
+        }
+    }
+    document.getElementById("percentage").textContent = "Level complete!";
+    window.cancelAnimationFrame(currentRenderer);
+    clearInterval(levelLoopId);
 }
 ///////////////////////////////
 //          editor           //
 ///////////////////////////////
 
 var editorStates = {
-    currentLevel: 0,
     x: 0,
     editorSubpixel: 0,
     velocity: 0,
@@ -971,6 +1167,7 @@ var editorStates = {
     tempColor: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
     tempTile: structuredClone(testTile),
     tempTrigger: {target1: "c1", target2: "rgbaMain", value: null, offset: 0, duration: 0},
+    clipboardTrigger: null,
     triggerPosition: 0,
     numberDialogState: {value: 0, min: 0, max: 1, integer: false},
     whatToAdd: [[{}]], //2d tile array
@@ -978,7 +1175,6 @@ var editorStates = {
     hasSelection: false,
     selection: [[0, 0], [0, 0]], //top left x,y; bottom right x,y
     selectedTiles: [[{}]],
-    startPosData: {} //player object
 }
 function posToFrame(x, subx){ //only used in editor previews ugh guys please appreciate this
     if (x < 0){return 0} //needed due to how triggers are calculated
@@ -986,7 +1182,7 @@ function posToFrame(x, subx){ //only used in editor previews ugh guys please app
     subx += x * 1200 //convert to pure subpixles
     var thisTriggerDistance = 42; //if the remaining subx is less than this we know that we finish before the next speed change
     if (level.speedChanges.length == 0) {
-        return Math.floor(subx / speedValues[1]) //special case for a level with no speed changes
+        return Math.floor(subx / speedValues[1]); //special case for a level with no speed changes
     } 
     else {
         thisTriggerDistance = (level.speedChanges[0][0]-1) * 1200;
@@ -1015,115 +1211,124 @@ function posToFrame(x, subx){ //only used in editor previews ugh guys please app
     return result;
 }
 function removeNthElement(a, n){
-    return a.slice(0, n).concat(a.slice(n+1, a.length));
+    return a.slice(0, n).concat(a.slice(n+1, a.length)); //this is the main target for optimization
 }
-function exportLevel(){
-    var data = JSON.stringify(level);
-    var dataArray = [...data];
-    var characterArray = [];
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+function exportLevel(from, filename){ //a questionable inclusion for sure
+    var dataArray = Array(...enc.encode(JSON.stringify(from)));
+    var EDataArray = [];
     var decoderArray = [];
-    for (d of dataArray){
-        if (!characterArray.includes(d)){
-            characterArray.push(d);
-        }
-    }
+    var EDecoderArray = []; //extra bits; we are using a 9-bit encoding so we seperate out the 9th bits and store them separaely
     var foundPairs = [];
-    var nextValue = characterArray.length;
-    dataArray = dataArray.map((x) => characterArray.indexOf(x));
-    while (nextValue < 4000){ //12 bit encoding -> we have max 4096 characters, this is a bit less to make sure 
+    var nextValue = 256;
+    var occurences = new Map();
+    while (nextValue < 512){
         //find best pair
-        var pairs = dataArray.map((a, b, c) => `${c[b]}x${c[b+1]}`);
+        var pairs = dataArray.map((a, b, c) => 512*c[b]+c[b+1]);
         pairs.pop();
-        var occurences = {}
+        var foundPair = -1
         for (p of pairs) {
-            occurences[p] = occurences[p]+1 || 1;
+            occurences.set(p, occurences.get(p)+1 || 1);
+            if (occurences.get(p) > 2){
+                foundPair = p; //uses a greedy pair-finder, may replace with "find most frequent pair" if it has little effect on prefromance
+                break;
+            }
         }
-        var bestScore = Math.max(...Object.values(occurences));
-        if (bestScore < 3){break;}
-        var bestPair = Object.keys(occurences)[Object.values(occurences).indexOf(bestScore)];
-        decoderArray.push(bestPair.split("x").map((j) => Number(j)));
+        if (foundPair < 0){break;} // this means nothing was found
         //combine entries
+        decoderArray.push(Math.floor(p/512), p%512);
         for (let i = pairs.length-1; i>=0; i--){
-            if (pairs[i] == bestPair){
+            if (pairs[i] == foundPair){
                 dataArray = removeNthElement(dataArray, i);
                 dataArray[i] = nextValue;
                 i -= 1;
             }
         }
         nextValue++;
+        occurences.clear();
     }
-    //combine data
-    characterArray = characterArray.map((x) => x.codePointAt(0).toString(16).padStart(4, "0"));
-    dataArray = dataArray.map((x) => x.toString(16).padStart(3, "0"));
-    decoderArray = decoderArray.flatMap((x) => [x[0].toString(16).padStart(3, "0"), x[1].toString(16).padStart(3, "0")]);
-    var fullData = dataArray.join("") + "fff" + decoderArray.join("") + "fff" + characterArray.join("");
-    if (fullData.length % 2 == 1) {fullData += "0"}
-    var fullDataArray = [];
+    EDataArray = dataArray.map(x => Math.floor(x/256));
+    dataArray = dataArray.map(x => x % 256);
+    EDecoderArray = decoderArray.map(x => Math.floor(x/256));
+    decoderArray = decoderArray.map(x => x % 256);
+    var edt2 = [];
+    var ede2 = [];
+    for (let i = 0; i < EDataArray.length; i+=8){ //process arrays....
+        var edts = 0;
+        for (let j = 0; j < 8; j++){
+            if(i+j < EDataArray.length){edts += EDataArray[i+j]*(2**(7-j))}
+        }
+        edt2.push(edts);
+    }
+    for (let i = 0; i < EDecoderArray.length; i+=8){
+        var edes = 0;
+        for (let j = 0; j < 8; j++){
+            if(i+j < EDecoderArray.length){edes += EDecoderArray[i+j]*(2**(7-j))}
+        }
+        ede2.push(edes);
+    }
+    EDataArray = edt2;
+    EDecoderArray = ede2;
+
+    var fullDataArray = [Math.floor(dataArray.length/2**24), Math.floor(dataArray.length%2**24 / 2**16), Math.floor(dataArray.length%2**16 / 2**8), Math.floor(dataArray.length%2**8),
+    Math.floor(decoderArray.length/2**24), Math.floor(decoderArray.length%2**24 / 2**16), Math.floor(decoderArray.length%2**16 / 2**8), Math.floor(decoderArray.length%2**8),
+    Math.floor(EDataArray.length/2**24), Math.floor(EDataArray.length%2**24 / 2**16), Math.floor(EDataArray.length%2**16 / 2**8), Math.floor(EDataArray.length%2**8)];
+    fullDataArray = fullDataArray.concat(dataArray, decoderArray, EDataArray, EDecoderArray);
     //pack into 8bit array
-    for (let i = 0; i < fullData.length; i+=2){
-        fullDataArray.push(parseInt(fullData.substring(i, i+2), 16));
-    }
     var exportArray = new Uint8Array(fullDataArray);
     var exportData = new Blob([exportArray]);
     //export
     var exportURL = URL.createObjectURL(exportData);
     var q = document.createElement("a");
-    q.download = `${level.title}.tdl`;
+    q.download = `${filename}.tdl`;
     q.href = exportURL;
     q.click();
     URL.revokeObjectURL(exportURL);
 }
-function importLevel(x){
+function importLevel(x, after){
     x.arrayBuffer().then((data) => {
-        var q = new Uint8Array(data);
-        var dataString = "";
-        for (d of q){
-            dataString += d.toString(16).padStart(2, "0")
-        }
-        //recover arrays
-        var pointer = 0;
-        var dataArray = [];
-        while (dataString.substring(pointer, pointer+3) != "fff"){
-            dataArray.push(parseInt(dataString.substring(pointer, pointer+3), 16));
-            pointer += 3;
-        }
-        pointer += 3;
-        var decoderArray = [];
-        while (dataString.substring(pointer, pointer+3) != "fff"){
-            decoderArray.push([parseInt(dataString.substring(pointer, pointer+3), 16), parseInt(dataString.substring(pointer+3, pointer+6), 16)]);
-            pointer += 6;
-        }
-        decoderArray.reverse() //??? just trust me
-        pointer += 3;
-        var characterArray = [];
-        while (pointer < dataString.length){
-            characterArray.push(parseInt(dataString.substring(pointer, pointer+4), 16));
-            pointer += 4;
-        }
-        //decode data
+        var w = new Uint8Array(data);
+        var q = Array(...w);
+        //find datas
+        var dataOffset = 12;
+        var decodeOffset = dataOffset + q[0]*2**24 + q[1]*2**16 + q[2]*2**8 + q[3];
+        var EDataOffset = decodeOffset + q[4]*2**24 + q[5]*2**16 + q[6]*2**8 + q[7];
+        var EDecodeOffset = EDataOffset+ q[8]*2**24 + q[9]*2**16 + q[10]*2**8 + q[11];
+        
+        var dataArray = q.slice(dataOffset, decodeOffset);
+        var decoderArray = q.slice(decodeOffset, EDataOffset);
+        var EDataArray = q.slice(EDataOffset, EDecodeOffset);
+        var EDecoderArray = q.slice(EDecodeOffset);
+
+        dataArray = dataArray.map((v, i) => v + (EDataArray[Math.floor(i/8)] & 2**(7-i%8) ? 256 : 0));
+        decoderArray = decoderArray.map((v, i) => v + (EDecoderArray[Math.floor(i/8)] & 2**(7-i%8) ? 256 : 0)); //and now i understand why little-endian exists
+
         var nextValue = Math.max(...dataArray);
-        for (e of decoderArray){
-            dataArray = dataArray.flatMap((d) => d == nextValue ? e : d);
+        for (let i=decoderArray.length-2; i>=0; i-=2){
+            dataArray = dataArray.flatMap((d) => d == nextValue ? [decoderArray[i], decoderArray[i+1]] : d);
             nextValue--;
         }
-        importRaw(dataArray.map((d) => String.fromCharCode(characterArray[d])).join(""));
+        importRaw(dec.decode(new Uint8Array(dataArray)), after); //shockingly i don't feel terrible about this code
     });
 }
-function exportRaw(){
-    navigator.clipboard.writeText(JSON.stringify(level));
+function exportRaw(from){
+    navigator.clipboard.writeText(JSON.stringify(from));
     window.alert("Copied to clipboard");
 }
-function importRaw(data){
+var tempData = {};
+function importRaw(data, after){
     try {
         var tempLevel = JSON.parse(data);
         if (tempLevel){
-            level = JSON.parse(data)
+            tempData = JSON.parse(data);
+            after();
         }
         else {
             window.alert("Import error: no object found");
         }
     } catch (ee) {
-        window.alert(`Import error: ${ee}`);
+        window.alert(`Import error: corrupted data`);
     }
 }
 function addTiles(y, x){
@@ -1145,7 +1350,8 @@ function addTiles(y, x){
     }
 }
 function changeEditorLength(newlen){
-    newlen = clamp(newlen, 25, 4096); //arbitrary max level length
+    if (newlen == level.tiles[0].length){return;}
+    newlen = clamp(newlen, gameWidth, 4096); //arbitrary max level length
     if (level.tiles[0].length > newlen){
         //make smaller
         while (level.tiles[0].length > newlen){
@@ -1204,18 +1410,48 @@ function fillSelecion(){
         }
 }
 var inLevel = false;
+var inPractice = false;
 var levelLoopId;
-function playLevel(level){
+function playLevel(cust, num){
+    for (let i of Object.keys(lastTriggerFrame)){
+        for (let j of Object.keys(lastTriggerFrame[i])){
+            lastTriggerFrame[i][j] = 0;
+        }
+    }
     window.cancelAnimationFrame(currentRenderer);
     clearInterval(levelLoopId);
-        //loadLevel(level) wich would load the level in question from a file into the level object -- implement when needed
-    if (inLevel == true){
-        //this means we have died/restarted at least once, so we update stats
+    if(startupFlag){return;}
+    var loadPP = levelID == num && customLevel == cust && inPractice && practicePoints.length > 0;
+    if (!loadPP){
+        practicePoints = [];
     }
+    if (level.startPosData){
+        loadPP = true;
+        practicePoints[0] = level.startPosData;
+    }
+    player1 = loadPP ? structuredClone(practicePoints[practicePoints.length-1][0]) : {
+    y: 3,
+    mode: 0, gravity: 1,
+    bufferCheck: true, previousTile: false,
+    dashing: false, fallTimer: 4, var1: 0,
+    jumpTimer: 0, jumpFrames: 0, hoverFrames: 0,};
+
+    player2 = loadPP ? structuredClone(practicePoints[practicePoints.length-1][1]) : {
+    y: 3,
+    mode: 0, gravity: -1,
+    bufferCheck: true, previousTile: false,
+    dashing: false, fallTimer: 4, var1: 0,
+    jumpTimer: 0, jumpFrames: 0, hoverFrames: 0,};
+
+    commonStates = loadPP ? structuredClone(practicePoints[practicePoints.length-1][2]) : {
+    x: 0, speed: 1, xSub: 0, frame: 0,
+    P2Active: false,};
+
+    levelID = num;
+    customLevel = cust;
+    level = cust ? structuredClone(savefile.maps[num]) : structuredClone(mainLevels[num]);
     inLevel = true;
-    //reset values
-    player1 = defaultPlayer; //player 2 is always set when you go into a dual so no need to reset it
-    commonStates = defaultCommonStates;
+    if (cust) {savefile.customAttempts[num]++;} else {savefile.attempts[num]++;}
     render();
     levelLoopId = setInterval(gameLoop, 10);
 }
@@ -1224,14 +1460,21 @@ function exitLevel(){
     clearInterval(levelLoopId);
     inLevel = false;
 }
-
-
 var savefile = {
     settings: {
         autoRetry: true,
-        sex: false 
+        gameSize: 12,
+        autoCheckpoints: false,
+        hotkeys: true,
+        showAttempts: true,
+        showPrecentage: true,
     },
-    savedObjects: Array(16) 
+    savedObjects: Array(16),
+    bests: [],
+    customBests: Array(32).fill(0),
+    attempts: [],
+    customAttempts: Array(32).fill(0),
+    maps: Array(32).fill(level),
 };
 ///////////////////////////////
 //     html constructors     //
@@ -1242,19 +1485,20 @@ function makeFiller(){ //creates an empty element the same size as the game scre
     for (let i = 0; i < gameHeight; i++){q += "<br>"}
     return q;
 }
+tileString += "<span id=playertile></span>"
 tileString += `<span id="gameBackground">${makeFiller()}</span><span id="gameForeground">${makeFiller()}</span>`;
 tileString += "<span id='editorInterface'>";
 for (let i = 0; i < gameHeight; i++){
     for (let j = 0; j < gameWidth; j++){
         tileString += `<span id="e${i}x${j}" class="editortile" onmouseenter="tileHoverHandler(${i},${j},false)" onmousedown="tileHoverHandler(${i},${j},true)">&nbsp;</span>`
     }
-    tileString += "<br>"
+    tileString += "<br>" //TODO add a subcontainer to each tile which is absolutely positioned and draw to those to truly fix rendering forever
 }
 tileString += "</span>"
 tileString += "<span id='gameInterface'>";
 for (let i = 0; i < gameHeight; i++){
     for (let j = 0; j < gameWidth; j++){
-        tileString += `<span id="${i}x${j}" class="gametile">&nbsp;</span>`
+        tileString += `<span id="c${i}x${j}" class="gametilecontainer"><span id="${i}x${j}" class="gametile">&nbsp;</span>&nbsp;</span>`
     }
     tileString += "<br>"
 }
@@ -1263,18 +1507,24 @@ document.getElementById("game").innerHTML = tileString;
 
 var currentTab = "blablabla"
 var tabs = {
-    main: ["main", "container", "practice"],
-    custom: ["custom", "container", "practice"],
-    edit: ["edit", "container", "editorunder", "editorInterface"],
+    main: ["main", "container", "practice", "gpstats"],
+    custom: ["custom", "container", "practice", "slotselect", "gpstats"],
+    edit: ["edit", "container", "editorunder", "editorInterface", "slotselect"],
     settings: ["settings"]
 };
-var everyTab = ["main", "container", "custom", "practice", "edit", "editorunder", "settings", "editorInterface"]; //questionable
+var everyTab = ["main", "container", "custom", "practice", "edit", "editorunder", "settings", "editorInterface", "slotselect", "gpstats"]; //questionable
 function switchTab(tabname){
+    die();
+    practicePoints = [];
+    window.cancelAnimationFrame(currentRenderer);
+    clearInterval(levelLoopId);
+    clearTimeout(replayerID);
     //what to do when switching FROM this tab
     switch (tabname){
         case "main":
             break;
         case "custom":
+            savefile.maps[selections.slotnumber] = structuredClone(level);
             break;
         case "edit":
             window.cancelAnimationFrame(currentRenderer);
@@ -1291,8 +1541,11 @@ function switchTab(tabname){
     //what to do when switching TO this tab
     switch (tabname){
         case "main":
+            customLevel = false;
             break;
         case "custom":
+            customLevel = true;
+            level = structuredClone(savefile.maps[selections.slotnumber]);
             break;
         case "edit":
             render();
@@ -1303,26 +1556,28 @@ function switchTab(tabname){
 }
 switchTab("main");
 var selections = {}
-function buildSelector(name, target, options, otherfn){ //otherfn is called when an option is selected (supply as string)
-    selections[name] = options[0];
+function buildSelector(name, target, options, otherfn, condition){ //otherfn is called when an option is selected (supply as string)
+    condition ||= "true";
+    //selections[name] = options[0];
     document.getElementById(target).classList.add("selector");
-    var result = `<span id="${name}-text">${options[0]}</span><span class="expander" onclick="document.getElementById('${name}-options').style.display='flex'">+</span>
+    var result = `<span id="${name}-text">${options[0]}</span><span class="expander" onclick="if(${condition}){document.getElementById('${name}-options').style.display='flex'}">+</span>
                 <span id="${name}-options" class="selectionoptions" style="display:none">`
         for (let i = 0; i < options.length; i++){
-            result += `<span class="selectionoption" onclick="document.getElementById('${name}-options').style.display='none';
+            result += `<span class="selectionoption ${window.navigator.userAgent.includes("Firefox")?"ff-fix":""}" onclick="document.getElementById('${name}-options').style.display='none';
                     document.getElementById('${name}-text').textContent='${options[i]}';
                     selections['${name}']='${options[i]}';${otherfn}">${options[i]}</span><br>`;
         }
     result += `</span>`;
     document.getElementById(target).innerHTML = result; //html has selection menus built in ... but im quirky like that
+    document.getElementById(target).children[2].firstChild.click(); //initalize values
 }
 function destroySelector(name){
     selections["name"] = null;
 }
 var blendModes = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
 function syncSelectors(){
-    for (const s of selections){
-        document.getElementById(`${s}-text`).textContent = selections[s];
+    for (const [key, value] of Object.entries(selections)){
+        document.getElementById(`${key}-text`).textContent = value;
     }
 }
 var tileRowPage = 0;
@@ -1338,7 +1593,7 @@ function addNewTileRow(){
     var addingIndex = characterContainer.childElementCount;
     var currentRow = characterContainer.appendChild(document.createElement("tr"));
     currentRow.id = `tilerow${addingIndex}`;
-    currentRow.innerHTML = `<td class="tile-char"><input type="text" name="ttext${addingIndex}" id="ttext${addingIndex}" minlength="1" maxlength="1" size="1" onchange="editorStates.tempTile.chars[${addingIndex}] = ttext${addingIndex}.value" /></td>
+    currentRow.innerHTML = `<td class="tile-char"><input type="text" name="ttext${addingIndex}" id="ttext${addingIndex}" minlength="1" maxlength="2" size="1" onchange="editorStates.tempTile.chars[${addingIndex}] = String.fromCodePoint(ttext${addingIndex}.value.codePointAt(0))" /></td>
                             <td class="tile-color"><span id="colselect${addingIndex}"></span></td>
                             <td class="tile-length"><input type="number" name="tlength${addingIndex}" id="tlength${addingIndex}" size="10" onchange="editorStates.tempTile.times[${addingIndex}] = Number(tlength${addingIndex}.value)" /></td>
                             <td class="tile-behavior"><span id="behaviorselect${addingIndex}"></span></td>`;
@@ -1406,9 +1661,42 @@ for (let i = 0; i < gameWidth; i++){
 document.getElementById("triggerrow").innerHTML = tileString;
 buildSelector("ttarget1", "target1", Object.keys(defaultValues), "buildSelector('ttarget2', 'target2', Object.keys(emptyTriggerObject[selections.ttarget1]), 'editorStates.tempTrigger.target2 = selections.ttarget2'); editorStates.tempTrigger.target1 = selections.ttarget1; editorStates.tempTrigger.target2 = Object.keys(emptyTriggerObject[selections.ttarget1])[0];");
 buildSelector("tvblendx", "tvblendx", blendModes, "tvblend.value = selections.tvblendx"); //silly workaround
+buildSelector("slotnumber", "slotnumber", Array(32).fill(0).map((x, i) => i), ` if (currentTab == 'edit'){
+                                                                                    savefile.maps[levelID] = structuredClone(level);
+                                                                                }
+                                                                                levelID = selections.slotnumber;
+                                                                                level = structuredClone(savefile.maps[levelID]);
+                                                                                die();
+                                                                                clearTimeout(replayerID);`, "true");
+buildSelector("mainlvid", "mainlvid", Array(5).fill(0).map((x, i) => i+1), "playLevel(true, Number(selections.mainlvid))", "true");
 function openTriggerMenu(pos){
+    if (document.getElementById("tvalue").style.display == "block"){return;} //dont open multiple at once
     document.getElementById("tvalue").style.display = "block";
     document.getElementById(`tvalue-${typeMap[editorStates.tempTrigger.target2]}`).style.display = "inline";
+    document.getElementById("triggerdelete").style.display = "none";
+        document.getElementById("triggercopy").style.display = "none";
+    var toLoad = level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][editorStates.x + pos];
+    if (toLoad){ //load trigger if it exists
+        switch (typeMap[editorStates.tempTrigger.target2]){
+            case "color":
+                tvcolor.value = ntoc(toLoad[0]);
+                tvcolora.value = toLoad[0][3];
+                break;
+            case "blend":
+                selections.tvblendx = toLoad[0];
+                break;
+            default: //it's a number otherwise
+                document.getElementById(`tv${typeMap[editorStates.tempTrigger.target2]}`).value = toLoad[0];
+        }
+        tlength.value = toLoad[1];
+        toffset.value = toLoad[2];
+        //options only needed for dealing with triggers that exist
+        document.getElementById("triggerdelete").style.display = "inline";
+        document.getElementById("triggercopy").style.display = "inline";
+    }
+    //only show paste when type matches
+    document.getElementById("triggerpaste").style.display = (editorStates.clipboardTrigger && typeMap[editorStates.tempTrigger.target2] == typeMap[editorStates.clipboardTrigger[2]]) ? "inline" : "none";
+    document.getElementById(`t${pos}`).classList.add("active");
     editorStates.triggerPosition = pos;
 }
 function addTrigger(){
@@ -1431,24 +1719,28 @@ tableElement.id = "cttable";
 for (let i = 0; i < 4; i++){
     var currentRow = tableElement.appendChild(document.createElement("tr"));
     for (let j = 0; j < 32; j++){
-        var currentElement = currentRow.appendChild(document.createElement("td"));
+        var currentElementContainer = currentRow.appendChild(document.createElement("td"));
+        var currentElement = currentElementContainer.appendChild(document.createElement("span"));
+        var currentElementSpacer = currentElementContainer.appendChild(document.createElement("span"));
+        currentElementSpacer.textContent = "\xa0";
+        currentElement.classList.add("gametile");
         currentElement.id = `ct${i}x${j}`;
-        currentElement.addEventListener("click", () => navigator.clipboard.writeText(String.fromCharCode(chartablePage*128 + i*32 + j)))
+        currentElement.addEventListener("click", () => navigator.clipboard.writeText(String.fromCodePoint(chartablePage*128 + i*32 + j)))
     } 
 }
 var deadlyTiles = ["A", "V", "Ж"];
 var solidTiles = ["#", "Z", "Ш"];
 var semisolidTiles = ["T"];
-var specialTiles = ["@", "Ö", "¤", "÷", "-", "=", "~", "Q", ")", "[", "0", "1", "2", "3", "4", "D", "H", "X", "O", ">", "M", "U", "Đ", "R"];
+var specialTiles = ["@", "Ö", "¤", "÷", "-", "=", "~", "Q", ")", "[", "0", "1", "2", "3", "4", "D", "H", "X", "O", ">", "M", "U", "Đ", "ß", "&"];
 var speedchangeTiles = ["0", "1", "2", "3", "4"];
 function buildChartable(page){
     document.getElementById("ctrange").textContent = `${(page*128).toString(16)}-${(page*128 + 127).toString(16)}`
     for (let i = 0; i < 4; i++){
         for (let j = 0; j < 32; j++){
             var currentElement = document.getElementById(`ct${i}x${j}`);
-            var char = String.fromCharCode(page*128 + i*32 + j);
+            var char = String.fromCodePoint(page*128 + i*32 + j);
             currentElement.textContent = char;
-            currentElement.style.backgroundColor = "#FFFFFF";
+            currentElement.style.backgroundColor = "transparent";
             if (deadlyTiles.includes(char)){
                 currentElement.style.backgroundColor = "#FF6060";
             }
@@ -1473,7 +1765,7 @@ for (let i = 0; i < 2; i++){
     var r = document.getElementById("savedobjs").appendChild(document.createElement("tr"));
     for (let j = 0; j < 8; j++){
         var c = r.appendChild(document.createElement("td"));
-        c.textContent = String.fromCharCode(65 + j + 8*i); //uppercase letters
+        c.textContent = String.fromCodePoint(65 + j + 8*i); //uppercase letters
         c.addEventListener("click", () => {
             if (!savingCustom){
                 editorStates.whatToAdd = savefile.savedObjects[j + 8*i];
@@ -1531,9 +1823,52 @@ var typeprevColors = {
     none: "rgb(220 220 220)",
 };
 ///////////////////////////////
-//      handling stuff       //
+//         load data         //
 ///////////////////////////////
 
+const levelLoader = new XMLHttpRequest(); //fuck promises
+function loadLevel(name){
+    levelLoader.open("GET", `http://localhost:8080/maps/${name}`); //REPLACE THIS WITH GITHUB URL ON RELEASE
+    levelLoader.responseType = "blob";
+    levelLoader.send();
+} //in the release version this will run at startup
+levelLoader.onloadend = (e) => {
+    importLevel(levelLoader.response, level);
+};
+/* load main levels -- uncomment in final
+for (let i = 0; i < 5; i++){
+    loadLevel(`map${i}`);
+    mainLevels.push(structuredClone(level));
+}
+*/
+function loadSavefile(data){
+    savefile = structuredClone(data);
+    //setup toggles to make sense
+    setautoretry.checked = savefile.settings.autoRetry;
+    setdispsize.checked = savefile.settings.gameSize;
+    setshowatts.checked = savefile.settings.showAttempts;
+    setshowperc.checked = savefile.settings.showPrecentage;
+    level = structuredClone(savefile.maps[Number(levelID)]);
+    if (level.startPosData){
+        document.getElementById("startpospart1").textContent = "Remove start position";
+    }
+}
+if (localStorage.getItem("newtextdashsave")){
+    loadSavefile(JSON.parse(localStorage.getItem("newtextdashsave")));
+}
+///////////////////////////////
+//      handling stuff       //
+///////////////////////////////
+function handleStartposSetter(){
+    if (level.startPosData){
+        level.startPosData = false;
+        document.getElementById("startpospart1").textContent = "Set start position";
+    }
+    else {
+        editorStates.mode="startpos";
+        document.getElementById("startpospart1").textContent = "Select position on editor";
+    }
+}
 function tileHoverHandler(x, y, press){ //x and y are display coords, press is true when this is called from a click (false when called from hover)
     y += editorStates.x;
     if (currentTab == "edit" && (isMouseDown || press)){
@@ -1544,6 +1879,18 @@ function tileHoverHandler(x, y, press){ //x and y are display coords, press is t
                     if (level.speedChanges.map(a => a[0]).indexOf(y) != -1 && level.speedChanges[level.speedChanges.map(a => a[0]).indexOf(y)][2] == x){ //remove (overwrite) speed changes
                         level.speedChanges = removeNthElement(level.speedChanges, level.speedChanges.map(a => a[0]).indexOf(y));
                     }
+                    if (y == level.tiles[0].length-1){ //shorten editor only if we remove the last tile
+                        let q = true;
+                        let w = y;
+                        while (q && w>=gameWidth){
+                            q = true;
+                            for (let i=0; i<10; i++){
+                                q &&= !exists(level.tiles[i][w]);
+                            }
+                            if(q){w--}
+                        }
+                        changeEditorLength(w+1);
+                    }
                 } 
                 else {
                     addTiles(x, y);
@@ -1553,6 +1900,26 @@ function tileHoverHandler(x, y, press){ //x and y are display coords, press is t
                 if (press){
                     selectTiles(x, y);
                 }
+                break;
+            case "startpos":
+                document.getElementById("startpospart1").textContent = "Remove start position";
+                editorStates.mode = "add";
+                level.startPosData = [{
+                    y: 0,
+                    mode: 0, gravity: -1,
+                    bufferCheck: true, previousTile: false,
+                    dashing: false, fallTimer: 4, var1: 0,
+                    jumpTimer: 0, jumpFrames: 0, hoverFrames: 0,
+                },null,{
+                    x: 0, speed: 1, xSub: 0, frame: 0,
+                    P2Active: false,
+                }];
+                level.startPosData[0].y = x;
+                level.startPosData[0].mode = Number(prompt("Enter gamemode number (refer to editor guide)"));
+                level.startPosData[0].gravity = Number(prompt("Enter gravity value (1 or -1)"));
+                level.startPosData[1] = structuredClone(level.startPosData[0]);
+                level.startPosData[2].x = y;
+                level.startPosData[2].speed = Number(prompt("Enter speed value (0~4)"));
                 break;
         }
     }
@@ -1580,10 +1947,16 @@ document.addEventListener("mousedown", function(e){
 document.addEventListener("mouseup", function(e){
     isMouseDown = false;
     mouseReleased = true //cleared on every logic frame
+    editorStates.velocity = 0;
 });
 document.addEventListener("mousemove", function(e){
     document.getElementById("savedobjpreview").style.top = `${e.y}px`;
     document.getElementById("savedobjpreview").style.left = `${e.x}px`;
 });
+window.addEventListener("beforeunload", (ev) =>{
+    if(currentTab=="edit"){savefile.maps[Number(levelID)] = structuredClone(level)};
+    localStorage.setItem("newtextdashsave", JSON.stringify(savefile));
+});
+startupFlag = false;
 </script>
 </html>
