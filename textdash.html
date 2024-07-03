@@ -1,1098 +1,1962 @@
 <!DOCTYPE html>
-<html>
+<html lang="en-us">
 <head>
-<title>Text Dash</title>
+    <meta charset="utf-8" />
+    <title>Text Dash</title>
 <style>
-body {
-  background-color: white;
-  font-family: courier;
-  text-align: center;
-}
-p {
-  text-align: center;
-}
-table {
-	text-align: left;
-	margin-left: auto;
-	margin-right: auto;
-	border: 1px solid black;
-	border-spacing: 1px;
-}
-td {
-	border: 1px solid black;
-}
-#display {
-	font-size: 12pt;
-}
-#screen {
-	line-height: 0;
-}
-#editor {
-	line-height: 1;
-	display: none;
-}
-#coltrigopts, #camtrigopts, #customlv, #options, #removecol, #removecam, #practicebar, .editorstuff {
-	display: none;
-}
-#coltrigs, #bgtrigs, #camtrigs {
-	background-color: #FFFFFF;
-}
-.top {
-	border-top: 1px solid black;
-}
-.left {
-	border-left: 1px solid black;
-}
-.right {
-	border-right: 1px solid black;
-}
-.bottom {
-	border-bottom: 1px solid black;
-}
-.disable-select {
-  -webkit-user-select: none;  
-  -moz-user-select: none;    
-  -ms-user-select: none;      
-  user-select: none;
-}
+    * { box-sizing: border-box; min-width: 0; min-height: 0; } /* does this even fix anything? */
+    .disable-select {
+    -webkit-user-select: none;  
+    -moz-user-select: none;    
+    -ms-user-select: none;      
+    user-select: none;
+    }
+    body {
+        background-color: white;
+        font-family: Consolas, courier, monospace;
+        font-size: 16px;
+    }
+    .mid {
+        text-align: center;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    #container {
+        position: relative; /* needed to make absolute positioning work inside (it positions from the closest positioned ancestor) */
+        border: 1px solid black;
+        width: max-content;
+        overflow: hidden;
+    }
+    #game {
+        text-align: left;
+        position: relative;
+    }
+    #triggerrow {
+        display: block;
+        border: 1px solid black;
+        width: max-content;
+    }
+    .textlayer {
+        display: inline-block;
+        width: 0;
+        height: 0;
+    }
+    #gameBackground {
+        display: block;
+        position: absolute;
+        z-index: -10;
+        background: white;
+        isolation: isolate;
+        width: max-content;
+    }
+    #gameForeground {
+        display: block;
+        position: absolute;
+        z-index: 10;
+        background: transparent;
+        width: max-content;
+    }
+    .gametilecontainer, .gametile {
+        position: relative;
+        display: inline-block;
+        z-index: 0;
+        background-color: transparent;
+    }
+    #game .gametile {
+        position: absolute;
+    }
+    #cttable .gametile {
+        position: absolute;
+        background-color: transparent;
+    }
+    #editorInterface {
+        position: absolute;
+        width: max-content;
+    }
+    .editortile {
+        display: inline-block;
+        background-color: transparent;
+        color: transparent;
+        position: relative;
+        z-index: 9999;
+    }
+    .editortile, #triggerrow span {
+        outline: 1px solid rgb(0 0 0 / 0.07);
+    }
+    .editortile:hover{
+        outline: 2px solid rgb(0 0 0 / 0.5);
+    }
+    #triggerrow span:hover{
+        outline: 4px solid rgb(0 0 0 / 0.5);
+    }
+    .dialog {
+        text-align: center;
+        border: 4px double black;
+        display: block;
+        position: relative;
+        width: 32px;
+        height: 32px;
+    }
+    .dialogsymbol {
+        display: inline;
+        margin: auto;
+        vertical-align: middle;
+    }
+    .clickable:hover {
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    table {
+        border: 1px solid black;
+        margin: auto;
+    }
+    tr {
+        margin: 0;
+    }
+    td {
+        border: 1px solid black;
+        margin: 1px;
+    }
+    .scontainer {
+        display: block;
+    }
+    .selector {
+        position: relative;
+        border: 2px solid black;
+        padding: 1px 1px 1px 2px;
+        display: flow-root;
+        width: fit-content;
+    }
+    .expander {
+        display: block;
+        text-align: center;
+        margin-left: 2px;
+        border: 2px solid black;
+        cursor: pointer;
+        float: right;
+        width: 19px;
+    }
+    .expander:hover {
+        color: white;
+        background-color: black;
+    }
+    .selectionoptions {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        max-height: 120px;
+        overflow: scroll;
+        top: 24px;
+        z-index: 10;
+        background-color: white;
+        border: 2px solid black;
+        width: max-content;
+        min-width: 30px;
+        scrollbar-color: black white;
+        text-align: left;
+        z-index: 10000;
+    }
+    .selectionoption {
+        border: 1px solid black;
+        padding: 1px;
+        cursor: pointer;
+        min-height: 1.2lh;
+        z-index: 10000;
+        margin-bottom: -1lh;
+    }
+    .ff-fix{
+        margin-bottom: 0 !important;
+    }
+    .selectionoption:hover {
+        color: white;
+        background-color: black;
+    }
+    .kys { /*trick to force certain elements to be '"inline"' (this class is to be applied to tables)*/
+        margin: auto;
+        padding: 0;
+        border: 0;
+        vertical-align: middle;
+    }
+    input {
+        background-color: white;
+        font-family: Consolas, courier, monospace;
+        font-size: 16px;
+        border: 2px solid black;
+        margin: 2px;
+    }
+    input:focus {
+        color: white;
+        background-color: black;
+    }
+    #charcontainer {
+        border: 0;
+    }
+    #charcontainer tr {
+        outline: 2px solid black;
+    }
+    #charcontainer tr td {
+        border: 0;
+    }
+    #tvcontainer {
+        display: block;
+        min-height: 40px;
+        width: max-content;
+        min-width: 200px;
+        border: 1px solid black;
+    }
+    #edittable{
+        margin: 10px auto; 
+    }
+    #edittable td {
+        padding: 2px;
+        vertical-align: top;
+    }
+    #cttable {
+        border: 2px solid black;
+    }
+    #cttable tr, #cttable tr td{
+        margin: 1px;
+        padding: 1px;
+    }
+    #cttable tr td:hover, #savedobjs tr td:hover{
+        color: white;
+        background-color: black !important;
+        cursor: pointer;
+    }
+    #savedobjs tr td {
+        background-color: white;
+    }
+    #triggerrow .gametile{
+        text-shadow: 1px 1px white, -1px 1px white, 1px -1px white, -1px -1px white;
+    }
+    .selected {
+        outline: 2px solid rgb(0 255 255 / 0.35);
+    }
+    #savedobjpreview {
+        outline: 2px solid black;
+        position: absolute;
+        display: none;
+        background-color: white;
+        z-index: 100;
+        transform: translate(8px, -16px);
+    }
+    .mini {
+        font-size: 11px;
+        font-weight: 800;
+    }
+    #triggerrow span.active {
+        outline: 4px solid cyan;
+    }
+    #playertile{
+        position: absolute;
+    }
 </style>
 </head>
 <body>
--=- Text Dash! -=-<br>Press any key or click the screen to jump, select level by clicking below<br><br>
-<span onclick="showMain()">Main levels</span> | <span onclick="showCustom()">Custom levels</span> | <span onclick="goToEditor()">Editor</span> | <span onclick="goToOptions()">Options</span><br>
-<span id="notoptions"><span id="mainlv"><span onclick="goToLevel('base1')">Level 1</span> | <span onclick="goToLevel('base2')">Level 2</span> | <span onclick="goToLevel('base3')">Level 3</span> | <span onclick="goToLevel('base4')">Level 4</span></span><span id="customlv"></span>
-<br><br>
-<div><span id="levelstatus" class="playstuff">Playing <span id="mapname"></span> | Total attempts: <span id="totalatts"></span> | Best: <span id="bestp"></span>%</span><span class="editorstuff">Viewing level <span id="currentedit"></span></span></div>
-<br><br><br><br>
-<div><span id="attempt" class="playstuff"></span><span class="editorstuff">Length:<input type="number" id="editlen" name="editlen"> | <span onclick="editorChangeLen(Number(editlen.value))">Apply</span></span></div>
-<div><span id="precent" class="playstuff"></span><span class="editorstuff"><span onmousedown="heldArrow=1;" onmouseup="heldArrow=0;">&lt;&lt;</span>&nbsp;&nbsp;<span  onmousedown="heldArrow=2;" onmouseup="heldArrow=0;">&lt;</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span  onmousedown="heldArrow=3;" onmouseup="heldArrow=0;">&gt;</span>&nbsp;&nbsp;<span  onmousedown="heldArrow=4;" onmouseup="heldArrow=0;">&gt;&gt;</span></span></div>
-<div id="display">
-<div id="screen" class="disable-select" onmousedown="held = true" onmouseup="waveSpd = 1; held = false; bufferCheck = true;" onmouseenter="inside=true;" onmouseleave="inside=false;">
-<p><span id="line0" class="t left right top"></span></p>
-<p><span id="line1" class="t left right"></span></p>
-<p><span id="line2" class="t left right"></span></p>
-<p><span id="line3" class="t left right"></span></p>
-<p><span id="line4" class="t left right"></span></p>
-<p><span id="line5" class="t left right"></span></p>
-<p><span id="line6" class="t left right"></span></p>
-<p><span id="line7" class="t left right"></span></p>
-<p><span id="line8" class="t left right"></span></p>
-<p><span id="line9" class="t left right"></span></p>
-<p><span id="line10" class="t left right bottom"></span></p>
-</div>
-<div id="practicetoggle" class="playstuff" onclick="switchPracticeState()"><span id="eep"></span> practice mode</div><br>
-<div id="practicebar" class="playstuff"><span onclick="checkpoints.push([posX,posY,mode,gravity,speed,campos,jumpFrames,hoverFrames])">Place checkpoint</span> | <span onclick="checkpoints.pop()">Remove checkpoint</span></div>
-<div class="editorstuff">
-Object <span id="objtrigs">----------------------</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
-&nbsp;&nbsp;&nbsp;BG <span id="bgtrigs">----------------------</span>&nbsp;&nbsp;&nbsp;<span onclick="invertLines();">b/w</span><br>
-Camera <span id="camtrigs">----------------------</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br><br>
-<span id="setpos" onclick="inStartPosSelector = !inStartPosSelector; if(inStartPosSelector){startposes['custom'+currentEditorLevel]=false;}"><span id="cssp"></span>et start position<span id="catd"></span></span><br>
-<div id="coltrigopts">Color:<input type="color" id="colo" name="colo"> | Fadetime:<input type="number" id="fade" name="fade"> |<span onclick="addTrigger()"> Submit </span>|<span onclick="document.getElementById('coltrigopts').style.display = 'none'"> Cancel </span><span id="removecol" onclick="removeTrigTarget()">| Delete</span></div><br>
-<div id="camtrigopts">Position:<input type="number" id="posi" name="posi"> | Time:<input type="number" id="time" name="time"> |<span onclick="addTrigger()"> Submit </span>|<span onclick="document.getElementById('camtrigopts').style.display = 'none'"> Cancel </span><span id="removecam" onclick="removeTrigTarget()">| Delete</span></div><br><br>
-Block to add: <span id="blocktoadd"></span><br>
-<div><span id="blocklist"></span> |<span onclick="whatToAdd=prompt('Enter custom object string (USE . INSTEAD OF SPACE)')"> Custom</span></div>
-<br><div><span onclick="exportMap()">Export</span> | <span onclick="importMap()">Import</span></div>
-</div>
-</div></span>
-<span id="options">
-<br>- Saving -<br>
-<span onclick="saveGame()">Save</span> | <span onclick="loadGame()">Load</span> | <span onclick="swicthAutosave()">Autosave every minute: <span id="aso"></span></span> | <span onclick="wipeStats()">Wipe bests and attempts</span> | <span onclick="wipeGame()">Wipe everything</span><br><br><br>
-- Display -<br>
-<span onclick="showPercents=!showPercents;"><span id="shp"></span> percentage</span> | <span onclick="showAtts=!showAtts;"><span id="sha"></span> attempts</span> | <span onclick ="screenSize=prompt('Enter new font size (default: 12)')">Change screen size<br><br><br>
-- Editor help-<br>
-Click on the arrows to move the editor screen. If you want to playtest your level, go to the custom level tab.<br>
-Periods will render as empty spaces ingame. Spaces will cause the screen to break.
-Add triggers by clicking on the lines below the editor. You have to set the values that appear below then click Submit for the trigger to be added.<br>
-Cilcking on an existing trigger will allow you to edit or remove it.<br>
-If a trigger activates before the previous has finished, the latter will instantly finish.<br>
-The b/w button switches the trigger menu's background color between black and white, for better visibility.
-If you want to make a trigger instantaneous, set the time to 1. (0 causes a division by zero error)<br>
-The player starts on the 8th block, at the 4th block from the top.<br>
-The level ends 23 tiles before the editor does.<br><br>
-- Object list -<br>
-<table><tr>
-<td>.: empty<br>#,Z: block/floor<br>A,V: spike<br>D: d block (wave can slide on it)<br>H: h block (can hit head and not die)<br>-: jump pad</td>
-<td>=: gravity pad<br>Q: jump orb<br>@: gravity orb<br>Ö: gravity jump orb<br>~: dash orb<br>÷: gravity dash orb</td>
-<td>¤: spider orb<br>X,>,O,W,U: gamemode changes (cube,wave,ball,spider,ufo in that order)<br>0,1,2,3,4: speed changes<br>): normal gravity<br>[: reverse gravity<br>All others: decoration (has no collision or special effect)</td>
-</tr></table>
-</span>
+    <div class="mid">-=- Text Dash -=-</div>
+    <div class="mid">Click to jump.</div><br>
+
+    <div class="mid" id="header">
+        <span class="clickable" onclick="switchTab('main')">Main levels</span> | 
+        <span class="clickable" onclick="switchTab('custom')">Custom levels</span> | 
+        <span class="clickable" onclick="switchTab('edit')">Editor</span> | 
+        <span class="clickable" onclick="switchTab('settings')">Settings</span>
+    </div><br>
+
+    <div class="mid" id="main">
+        <div id="mainheader"><table class="kys"><tr class="kys">
+            <td class="kys">Level number: </td>
+            <td class="kys"><span id="mainlvid"></span></td>
+            <td class="kys">&nbsp;|&nbsp;Best: <span id="mainbest">0</span>%</td>
+            <td class="kys">&nbsp;|&nbsp;<span class="clickable" onclick="savefile.bests[levelID] = 0; savefile.attempts[levelID] = 0">Reset stats</span></td>
+        </tr></table></div>
+    </div>
+
+    <div class="mid" id="gpstats">
+        <div>Attempt <span id="attemptcount">0</span></div>
+        <div><span id="percentage">0%</span></div>
+        <div id="customheader"><span class="clickable" onclick="playLevel(true, selections.slotnumber)">Play</span> | <span class="clickable" onclick="window.cancelAnimationFrame(currentRenderer); clearInterval(levelLoopId);">Stop</span></div>
+    </div>
+    <div class="mid" id="custom">
+        
+    </div>
+    <div id="slotselect"><table class="kys"><tr class="kys">
+        <td class="kys">Slot number: </td>
+        <td class="kys"><span id="slotnumber"></span></td>
+        <td class="kys">&nbsp;|&nbsp;Best: <span id="custombest">0</span>%</td>
+        <td class="kys">&nbsp;|&nbsp;<span class="clickable" onclick="savefile.customBests[levelID] = 0; savefile.customAttempts[levelID] = 0">Reset stats</span></td>
+    </tr></table></div>
+
+    <div class="mid" id="edit">
+        <div>
+            <span onmousedown="editorStates.velocity = -4000;" onmouseup="editorStates.velocity = 0;">&lt;&lt;</span>&nbsp;
+            <span onmousedown="editorStates.velocity = -400;" onmouseup="editorStates.velocity = 0;">&lt;</span>&nbsp;
+            <span id="editorpos">0</span>/<span id="editormax">100</span>&nbsp;
+            <span onmousedown="editorStates.velocity = 400;" onmouseup="editorStates.velocity = 0;">&gt;</span>&nbsp;
+            <span onmousedown="editorStates.velocity = 4000;" onmouseup="editorStates.velocity = 0;">&gt;&gt;</span>
+        </div>
+    </div>
+
+    <div class="mid" id="settings">
+        <div id="settingsheader"><a href="editorguide.html">See the editor guide</a></div>
+        <table><tr>
+            <td>
+                <div>- Gameplay -</div>
+                <div>Auto-retry <input name="setautoretry" id="setautoretry" type="checkbox" onchange="savefile.settings.autoRetry = setautoretry.checked;" checked></div>
+                <div>Show attempts <input name="setshowatts" id="setshowatts" type="checkbox" onchange="savefile.settings.showAttempts = setshowatts.checked;" checked></div>
+                <div>Show percentage <input name="setshowperc" id="setshowperc" type="checkbox" onchange="savefile.settings.showPrecentage = setshowperc.checked;" checked></div>
+            </td>
+            <td>
+                <div>- Editor -</div>
+                Coming soon (or never lmao)
+            </td>
+            <td>
+                <div>- Global -</div>
+                <div>Display size: <input name="setdispsize" id="setdispsize" type="number" placeholder="12" onchange="savefile.settings.gameSize = Number(setdispsize.value); document.getElementById('container').style.fontSize = savefile.settings.gameSize+'px'"></div>
+            </td>
+            <td>
+                <div>- Savefile -</div>
+                <span class="clickable" onclick="exportRaw(savefile);">Export savefile</span><br>
+                <span class="clickable" onclick="importRaw(prompt('Enter savefile'), ()=>{loadSavefile(tempData)})">Import savefile</span><br>
+                <span class="clickable" onclick="localStorage.removeItem('newtestdashsave')">Wipe savefile</span><br>
+            </td>
+        </tr></table>
+    </div>
+
+    <div id="container" class="mid">
+        <div id="game" class="disable-select"></div>
+    </div>
+
+    <div id="practice" class="mid">
+        <span id="practiceenter" class="clickable" onclick="inPractice=true; document.getElementById('practiceactive').style.display='block';  document.getElementById('practiceenter').style.display='none';">Enter practice mode</span>
+        <span id="practiceactive" style="display: none;">
+            <span class="clickable" onclick="inPractice=false; document.getElementById('practiceactive').style.display='none';  document.getElementById('practiceenter').style.display='block';">Exit practice mode</span><br>
+            <span class="clickable" onclick="practicePoints.push([structuredClone(player1), structuredClone(player2), structuredClone(commonStates)]);">Place checkpoint (a)</span> | <span class="clickable" onclick="practicePoints.pop();">Remove checkpoint (s)</span>
+        </span>
+    </div>
+    <div id="editorunder">
+        <div class="mid">- Triggers -</div>
+        <div id="triggerrow" class="mid disable-select"></div>
+        <div id="triggeroptions" class="mid">
+            <table class="kys"><tr class="kys"><td class="kys">Target:</td>
+                <td class="kys"><span id="target1"></span></td>
+                <td class="kys">&nbsp;| Property:</td>
+                <td class="kys"><span id="target2"></span> </td></tr></table>
+            <div id="tvcontainer" class="mid"><span id="tvalue" style="display: none; margin: 5px;">
+                <table class="kys"><tr class="kys"><td class="kys">Value: </td><td class="kys">
+                    <span id="tvalue-color" style="display: none;">
+                        <input type="color" name="tvcolor" id="tvcolor"/> Alpha <input type="number" name="tvcolora" id="tvcolora" min="0" max="1" step="0.01" size="6"/>
+                    </span>
+                    <span id="tvalue-number" style="display: none;">
+                        <input type="number" name="tvnumber" id="tvnumber" step="1" size="7"/>
+                    </span>
+                    <span id="tvalue-numbera" style="display: none;">
+                        <input type="number" name="tvnumbera" id="tvnumbera" min="0" max="360" step="1" size="6"/>
+                    </span>
+                    <span id="tvalue-numberp" style="display: none;">
+                        <input type="number" name="tvnumberp" id="tvnumberp" min="0" max="24" step="1" size="6"/>
+                    </span>
+                    <span id="tvalue-number1" style="display: none;">
+                        <input type="number" name="tvnumber1" id="tvnumber1" min="0" max="1" step="0.01" size="6"/>
+                    </span>
+                    <span id="tvalue-blend" style="display: none;">
+                        <span id="tvblendx"></span>
+                    </span>
+                </td>
+                <td class="kys">
+                    &nbsp;| Duration: <input type="number" name="tlength" id="tlength" step="1" min="1" size="10"/> |&nbsp;
+                </td>
+                <td class="kys">
+                    Offset: <input type="number" name="toffset" id="toffset" step="1" min="1" size="10"/> |&nbsp;
+                </td>
+                <td class="kys">
+                    <span onclick="addTrigger(); document.getElementById(`t${editorStates.triggerPosition}`).classList.remove('active');" class="clickable">Submit</span> |&nbsp;
+                </td>
+                <td class="kys"><span id="triggerdelete">
+                    <span onclick="level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][editorStates.x + editorStates.triggerPosition] = null;
+                                    document.getElementById(`t${editorStates.triggerPosition}`).classList.remove('active');
+                                    document.getElementById('tvalue').style.display = 'none';
+                                    document.getElementById(`tvalue-${typeMap[selections.ttarget2]}`).style.display = 'none';
+                    " class="clickable">Delete</span> |&nbsp;</span>
+                </td>
+                <td class="kys"><span id="triggercopy">
+                    <span onclick="editorStates.clipboardTrigger = [level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][editorStates.x + editorStates.triggerPosition], editorStates.tempTrigger.target1, editorStates.tempTrigger.target2]
+                    " class="clickable">Copy</span> |&nbsp;</span>
+                </td>
+                <td class="kys"><span id="triggerpaste">
+                    <span onclick="level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][editorStates.x + editorStates.triggerPosition] = structuredClone(editorStates.clipboardTrigger[0]);
+                    " class="clickable">Paste</span> |&nbsp;</span>
+                </td>
+                <td class="kys">
+                    <span onclick="document.getElementById('tvalue').style.display = 'none';
+                                    document.getElementById(`tvalue-${typeMap[selections.ttarget2]}`).style.display = 'none';
+                                    document.getElementById(`t${editorStates.triggerPosition}`).classList.remove('active');
+                    " id="triggercancel" class="clickable">Cancel</span> |&nbsp;
+                </td>
+                </tr></table>
+            </span></div>
+        </div>
+        <table id="edittable">
+            <tr>
+                <td id="editsaving">
+                    <div class="mid">- Saving -</div>
+                    <div>[<span id="filename">No file</span>]</div>
+                    <label for="infile" class="clickable">Choose file</label>
+                    <div class="clickable" onclick="exportLevel(level, 'map'+levelID);">Export file</div>
+                    <input type="file" name="infile" id="infile" accept=".tdl" style="display: none;" onchange="
+                    document.getElementById('filename').textContent = infile.files.length == 0 ? 'No file' : infile.files[0].name;
+                    "/>
+                    <div class="clickable" onclick="importLevel(infile.files[0], ()=>{level=tempData});">Import file</div>
+                    <div class="clickable" onclick="exportRaw(level)">Export JSON</div>
+                    <div class="clickable" onclick="importRaw(window.prompt('Paste level string'), ()=>{level=tempData});">Import JSON</div>
+                    <div class="clickable" onclick="for(let i=0; i<level.tiles.length; i++){level.tiles[i] = Array(25)} changeEditorLength(25); level.triggers = structuredClone(emptyTriggerObject);">Wipe level</div>
+                </td>
+                <td id="edittools">
+                    <div class="mid">- Tools -</div>
+                    <div id="selectbtn" class="clickable" onclick="editorStates.mode = 'select';">Select</div>
+                    <div id="selectoptions" style="display: none;">
+                        <div class="clickable" onclick="editorStates.whatToAdd = editorStates.selectedTiles; syncTileRows();">Use as object</div>
+                        <div class="clickable" onclick="fillSelecion()">Fill with object</div>
+                        <div class="clickable" onclick="editorStates.hasSelection = false; document.getElementById('selectbtn').style.display = 'inline-block'; document.getElementById('selectoptions').style.display = 'none';">Deselect</div>
+                        <div id="savesel" class="clickable" onclick="savingCustom=true; savingFromSelection=true; document.getElementById('savesel').textContent='Click on a slot so save'">Save selection</div>
+                    </div>
+                    <table id="savedobjs"></table>
+                    <div id="saveobj" class="clickable" onclick="savingCustom=true; savingFromSelection=false; document.getElementById('saveobj').textContent='Click on a slot so save'">Save current object</div>
+                    <div><span class="clickable" id="startpospart1" onclick="handleStartposSetter()">Set start position</span></div>
+                    <div><input type="checkbox" name="previewcolors" id="previewcolors" checked="true"/> Preview colors</div>
+                    <div><input type="checkbox" name="previewmode" id="previewmode" checked="true"/> Property view: <span id="propviewtext">color</span></div>
+                </td>
+                <td id="chardialog">
+                    <div class="mid">- Tile editor -</div>
+                    <div id="singletile">
+                        <div class="mid"><span class="clickable" onclick="goToTileRowPage(tileRowPage-1);">&lt;&lt;</span>&nbsp;&nbsp;&nbsp;<span class="clickable" onclick="goToTileRowPage(tileRowPage+1);">&gt;&gt;</span></div>
+                        <div class="mini mid">Character/Color/State length/Behavior</div>
+                        <table id="charcontainer"></table>
+                        <div class="mid">
+                            <span class="clickable" onclick="addNewTileRow()">Add&nbsp;state</span> | 
+                            <span class="clickable" onclick="removeTileRow()">Remove&nbsp;state</span>
+                        </div>
+                        <div class="mid">Start of oscillation:<input type="number" name="tiletimebase" id="tiletimebase" min="0" step="1" size="9" onchange="editorStates.tempTile.timeBase=Number(tiletimebase.value)"/></div>
+                        <div class="mid clickable" onclick="editorStates.whatToAdd=[[editorStates.tempTile]]">Use tile</div>
+                    </div>
+                    <div id="multitile" class="mid" style="display: none;">
+                        <div>Multiple tiles being<br>used as object.</div>
+                        <br>
+                        <div class="clickable" onclick="editorStates.whatToAdd=[[editorStates.whatToAdd[0][0]]]; syncTileRows()">Return to single mode</div>
+                        <br>
+                    </div>
+                    <br>
+                    <div><input type="checkbox" name="deletemode" id="deletemode"/> Delete mode</div>
+                </td>
+                <td id="chartable">
+                    <div class="mid">- Character table -<br>
+                    Click on a character to copy it.<br>
+                    Characters with special gameplay effects are colored.</div>
+                    <div class="mid">
+                        <span class="clickable" onclick="chartablePage-=1; buildChartable(chartablePage)" style="cursor: pointer;">&lt;&lt;</span> 
+                        <span class="clickable" onclick="chartablePage = Math.floor(parseInt(prompt('Go to code point (hexadecimal)'), 16)/128); buildChartable(chartablePage)" id="ctrange"></span> 
+                        <span class="clickable" onclick="chartablePage+=1; buildChartable(chartablePage)" style="cursor: pointer;">&gt;&gt;</span>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <div id="savedobjpreview"></div>
+    </div>
+    <input type="text" id="tvblend" name="tvblend" style="display: none;"/><!--don't worry about this-->
 <script>
-function makeEmpty(len){
-	var result = [];
-	var part = [];
-	while (len > 0){
-		part.push(".");
-		len--;
-	}
-	for (i = 0; i < 11; i++){
-		result.push(structuredClone(part));
-	}
-	return result;
-}
-var maps = {
-	base1:[
-	arrayify("........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................"),
-	arrayify("........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................"),
-	arrayify("........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................"),
-	arrayify("........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................"),
-	arrayify("...................................................................................................................................................................................................................................A.....................................................................................................................................##########............#####################################............................Q....Q....Q............................."),
-	arrayify("................................Hi!.#.are.blocks,as.you.can.see......................A.is.a.spike............................................................................................###########.....#####.....#############.....................................................................................................................................VVVVVVVVVV...............................V..........=.VVVVV.......................Q............................................"),
-	arrayify(".............................................................................................................................................................................................############A.............#############........................Q.is.a.jump.orb,.try.clicking.it!.....................................Jump.pads!............................................................................................................................................................"),
-	arrayify(".................................................................................................................................................................................##########################A...........#############.........................................................................Q.....................................................................................................................................#####................................................"),
-	arrayify("..........................................................................................A...........................A................A..................AA.....................###########################AAAAAAAAAAA#############AAAAA.........................................................................................................-.............-............-.................=..........AAAAAAAAAAAAAAAA.........................#####AAAAAAAAAAAAAAAAAAAAAAA........................."),
-	arrayify("##########################################################################################################################################################################################################################################################################################################AAAAAAA#######################################################################################################################################################################################"),
-	arrayify("########################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################")],
-	base2:[
-	arrayify(".....................................................................................................................................#.........................#..............................................................#..............................................#........................D....................................................................#.................................................................................................................................#..................................................................................................................................................................................................................................................................................................................................."),
-	arrayify(".....................................................................................................................................#.........................#............................................Gravity.orb.......#..............................................#........................D...Wave.normally.dies.on.blocks,.it.can.only.survive.on.D.blocks...#....................................................................AA............................................................#..................................................................................................................................................................................................................................................................................................................................."),
-	arrayify(".....................................................................................................................................#.........................#.........Don't.fall.off!......................................#..............................................#........................D..................................................................#.........AAAA........................................................VV............................AAAA............................#................................Speed.change......................................................................................................................................................................................................................................................................................."),
-	arrayify(".....................................................................................................................................###########################.................................................@............#..............................................#.....Wave!...........>..DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDVVVVVVVVVVVVVVVVVVVVVV..........VVVV.................AAA..............AAAA................................................VVVV...................AAAA.....#..................................................................................................................................................................................................................................................................................................................................."),
-	arrayify(".....................................................................................................................................#........................................................................................################################################..............................................###########..........#......................................................VVV..............VVVV.......................................................................VVVV.....#..................................................................................................................................................................................................................................................................................................................................."),
-	arrayify("...................................Welcome.to.level 2...........................A....................................................#..............................................................................................VV......VV......VV.............#........................-.........................##.....###...###......#........................................................................................................................AAAA.....................................X....................................2............................................................................................................................................................................................................................................................................................."),
-	arrayify("............................................................................Q...#..........................................Ball!.....V......................##################...................................A..............AA......AA......AA......AA.........#.......................##........................####.....#.....#......###............................#......................................................................AA..................VVVV.....................................X...........................................................................................................................3......................................................4....................WOOOOAAAAHHHHHHHH!!!!!!!........................0.........................................................................."),
-	arrayify("................................................................................#...........................................................................#................#..Q....Q....Q....Q...#######################################################..........X................-..............................######................#####..................................................................................................VV...........................................................X....................................A......................................................................................3......................................................4....................................................................0.........................................................................."),
-	arrayify(".........................AA...............AA.............AA.............-.......#.....................AAA............................O......................#................#.....................#.....................................................#........####################.............................########......#.......#######...........................................AAAA................................AAA...........................................................................DDDD###################################........................AA......................................AA....................3..............A....................A..................4....................................................................0...................AAA...................................................."),
-	arrayify("#############################################################################################################################################################................#.....................#.....................................................#........#..........#########################DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDAAAAAAAAAAAAAAAAAAAAAA..................VVVV................................VVV......................................................AAAA.................####################################################################################################################################################################################################################################################################################################################################"),
-	arrayify("#############################################################################################################################################################................#.....................#.....................................................#........#..........#############################################################################################..............................................................................................................VVVV.................####################################################################################################################################################################################################################################################################################################################################")],
-	base3:[
-	arrayify(".......................................................................................................................................................................................................................######################################====#####....................#####################################################################................#...........#...........#......................................................................................#...............#........................................................................................"),
-	arrayify("..........................................................................................................................................................................................................................................V.......V.....X.................................#####################################################################................#...........#...........#......................................................................................#...............#........................................................................................"),
-	arrayify(".............................................................................................................................................................................................................................3O......A........A.........X...............4>................#################.......................................#############................#...........#...........#......................................................................................#################........................................................................................"),
-	arrayify("...............................................................................................................................................................................................................QQQQQQ..###############################################..4>.....................................................................................................#...........#...........#......................................................................................VVVVVVVVVVVVVVVVV........................................................................................"),
-	arrayify("...............................Demon?.........................................................................................................................................................................QQQQQQQ..#.............................................#...>.....................................................................................................#...........#...........#..............................................................................................................................................................................................."),
-	arrayify(".............................................................................................................................................................................................................Q.........#.............................................#...................................................................................................#.....#.....#.....#.....#.....#.......................................................................1.................@...@....@..@.........................Unbelieveable..................................................."),
-	arrayify(".................................2........................................................................................0...................................1................Q............Q...............Q..........#.............................................#...................................................................................................#.....#.....#.....#.....#.....#.......................................................................1..............@@@@@@@@@@@@@@@@@........................................................................................"),
-	arrayify(".................................2........................................................................................0...................................1............................................Q...........#.............................................#.....................................................################..............................#...........#...........#.......X.............AA....................................AA................1..............@...@..@..@..@..@........................................................................................"),
-	arrayify(".................................2...........AAA.......AAA........AAA.......AAA.........AAA..........AAA.......AAA........0.........AAAA..........AAAA........1..............AAAAA........AAAAA........................#.............................................#....................######################################################################.........#...........#...........#DDDDDDDD######################################################################......................................................................................................................."),
-	arrayify("########################################################################################################################################################################################################################.............................................###########################################################################################.........#...........#...........#..........................................................................##################AAAAAAAAAAAAAAAAA########################################################################################"),
-	arrayify("########################################################################################################################################################################################################################.............................................###########################################################################################.........#...........#...........#..........................................................................###########################################################################################################################")],
-	base4: [[".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V",".",".",".",".","V","V",".","V","V","V","#","#","#","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V",".",".",".",".","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","#",".",".",".","#","V","V","V","V","V","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","V",".","#","#",".","V","A",".",".",".",".",".",".","#","#","V","A","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","A","V","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".","#",".",".","#",".",".",".",".",".",".",".",".",".","A","V",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","A",".","A","V",".","V","A",".","A","V",".",".","#",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V",".",".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","<","3",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#",".",".",".","V","V","V","V","V",".","V","V","V","V","V","V","V",".",".",".",".",".",".",".","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","#",".",".",".","#","V","V","V","V","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","V",".",".",".",".",".",".","V","A",".",".",".",".",".",".",".","#","V","A","#","#","#","#","#",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#","A","V","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".","#",".",".","#",".",".",".",".",".",".",".",".","A","V",".",".",".",".",".",".",".",".",".",".",".","#",".",".","#",".",".",".",".",".",".",".",".","#",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".","#","#","#","#","#",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","A","V",".",".",".","V","A","V",".",".",".","#",".","^",".",".",".",".","^",".","#",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V",".",".",".",".",".",".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".","#","#",".",".",".",".","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","-",".",".",".","#",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#",".",".","#",".",".",".",".","#",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".","V","V","V",".",".",".",".",".","@",".",".",".",".",".",".",".","V","V","V","V","V","V","V","V","V","V","V","V","V","#",".",".",".","#","V","V","V","V","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","V",".",".",".",".",".",".",".",".","V","A",".",".",".",".",".",".",".",".","V","A",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","A","V","#","#","#","#","#","#","#",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".","#",".",".","#",".",".",".",".",".",".",".","A","V",".",".",".",".",".","Ö",".",".",".",".",".",".","#",".",".","#","#",".",".",".",".",".",".","#","#",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".","V","V","V","V","V",".",".",".",".",".",".",".","#","#","#","#","#",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".","A",".",".",".",".",".",".",".",".",".","V","A",".",".",".","A","V",".",".",".",".","#",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#",".",".",".",".",".",".",".","#","#","#","#","#",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".","#","#","#","#",".",".",".",".",".",".",".",".",")",".",".",".",".",".",".",".",".",".",")",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V",".",".",".",".",".","V","V","V","V","V","#","#",".",".",".","#","#","V","V","V","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","V",".",".",".",".",".",".",".",".",".",".","V","A",".",".",".",".",".",".",".",".","V","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","A","V","#","#","#","#","#","#","#",".",".","O",".",".",".",".",".","#","#","#","#","#","#","#","#","#",".",".","-",".",".",".",".",".",".","A","V",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#",".",".",".","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V","V","V",".",".",".",".",".","#","#","#","#","#",".",".",".",".",".","A","V","A",".",".",".",".",".",".",".",".",".","V","A",".","A","V",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".","D","D","D","D","D","D","D","D","D","D","D","D","#",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".","H","o","l","d",".","t","o",".","d","a","s","h","!",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A",".",".",".",".","#",".","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","Q",".",".",".",".","Ö",".",".","#",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","X",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","0",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".","Ö",".",".",".",".",".","@",".",".",".",".",".",".","Q",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V",".","V","#",".","X",".","X",".","#","V",".","V","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V",".",".",".","A",".",".",".",".","A",".",".",".","V",".",".",".",".",".",".",".",".",".","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","V",".","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V",".",".",".",".",".",".",".",".",".",".","A","V",".",".",".",".","Q",".",".",".",".",".","Q",".",".",".","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".","=","=","=","=","=","=","=",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","U",".","F",".","O","#",".",".",".","U",".",".","3",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V","V","V",".",".",".",".",".","V","A","V",".",".",".",".",".",".",".",".",".",".","V","A","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".","#","#","#",".",".",".",".","#",".",".",".",".","#","#","#",".",".",".",".",".",".",".",".",".","V",".",".",".",".",".",".","#","D","D","D","D","D","D",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V","V",".",".","G","G","G",".","G","G","G",".",".",".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#",".",".",".",".","#",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","Q",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","V",".",".","#","#","#","#","#","#","#",".",".",".","V",".",".",".",".",".",".",".",".",".",".",".",".",".","A","A",".",".",".",".",".",".",".",".",".",".","A","V",".",".",".",".","V","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A",".",".",".",".","A",".",".",".",".","V",".",".",".",".",".",".",".",".",".",".","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V",".",".",".",".",".",".",".",".","A",".",".",".",".",".",".",".",".",".","V",".",".",".",".",".","V",".",".",".",".",".","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","=","=","=","=","=","=",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#",".",".",".","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V",".",".",".",".",".",".",".",".",".",".",".",".","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".","#",".",".",".",".",".","#",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".","A",".",".",".",".",".",".",".",".",".","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V","V","V","V","V","V","V","V","V",".",".",".","G",".",".",".","G",".",".",".",".",".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","A",".",".",".",".",".",".",".",".","#",".",".",".",".","#",".",".",".",".","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V",".",".",".","-",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","M",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".","#","#","#","#",".","#","#",".",".",".",".",".",".",".",".",".",".",".","@",".",".",".","A","A","A",".",".",".",".",".",".",".",".",".",".",".",".","V",".",".",".","V",".",".",".",".",".","V",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","A",".","2",".",".",".",".",".",".","A","V",".",".","#","#",".",".","V","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","V",".",".",".",".","V","A",".",".",".",".",".",".",".",".",".",".",".",".",".","A","V",".",".",".",".",".",".",".",".","A","A","A",".",".",".",".",".",".",".",".",".","Q",".",".",".",".",".","Q",".",".",".",".",".","V","A",".",".",".",".","0",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","=","=","=","=","=","=","=","=","=","=",".",".",".",".",".",".",".",".","Q",".",".","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",">",".",">",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".","#",".",".",".",".","#","#","#",".",".",".",".","#",".",".",".",".",".",".",".",".",".","D","D","D","D","#",".","A",".",".",".",".","A",".","1",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","~",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","V","V","V",".",".",".",".","G",".","G",".","G",".","G",".",".",".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".","#","#","#","#",".",".",".",".","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A",".",".",".","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".","#",".",".",".",".",".",".","#",".",".","#","#","#","#","#",".",".","#","#",".","#","#",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","A","A","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","A",".",">",".",".",".",".","A","V",".",".",".","#","#",".",".",".","V","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","V",".",".",".",".",".",".","V","A",".",".",".",".",".",".",".",".",".",".",".","A","V",".",".","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=","=",".",".","X",".",".",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".","A","A","A","A","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".","#","D","D","D","D","D","D","D",".",".","X",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","G","G","G",".","G","G","G",".",".",".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","[",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".","#",".",".","#",".",".",".","#","#","A",".",".","#","#",".","#",".","#",".",".",".",".",".","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".","A","A","A",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".","A","V",".",".","#",".","#","#",".","#",".",".","V","A",".",".",".",".",".",".",".",".",".",".","#","#","#","A","V","#","#","#",".",".",".","#","#","V","A",".",".",".",".",".",".",".",".",".","A","V","#","#","#","#","#","#","#","#","#","#",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".","Ö",".",".",".",".",".",".",".",".",".",".","V","A",".",".",".",".",".",".","A",".",".",".",".",".","A",".",".",".",".",".","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".","#","#","#","#","#",".",".",".",".",".",".",".","A","A","A","A","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","V","A",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#",".",".",".",".","#","#","#","#","#",".",".",".",".",".",".",".","#","#","#","#","#",".",".",".",".",".",".",".",".",".","A","A","A",".","#",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".","A","A",".",".",".",".",".",".","A","A",".",".",".",".",".",".","A","A",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","A","A","A","A","A","A","A","A","A","A","A","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","."],["#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".","#","#","#",".",".",".","#",".","#","#",".",".",".",".",".",".",".","A",".","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".","A","V",".",".",".","#","#","#","#","#","#",".",".",".","V","A",".",".",".",".",".",".","#","#","#","#","#","A","V","#","#","#","#","#","#","#","#","#","#","V","A","#","#",".","#",".",".",".","A","V","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","A",".",".","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".","-","-","-",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#",".",".",".",".","#","#","#",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".",".","#","#","#","#","#",".",".",".",".",".","A","A","A","A","A",".",".",".",".",".",".",".",".",".",".",".",".","A","V",".","V","A",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".","D","D","D","D","D","D","D","D","D","D","D","D","#",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".","A","A",".",".","A","A","A","A","A","A","A","A","#","#","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".",".","A","V",".",".",".",".","#",".","#","#",".","#",".",".",".",".","V","A",".",".","#","#","#","#","#","#","#","A","V","#","#","#","#","#","#","#","#","#","#","#","#","V","A","#","#","#","#","#","A","V","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","V","A",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".","-","-","-",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".","#",".",".",".",".","#","#","#",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".",".",".",".","#","#","#",".",".",".",".",".",".","#","#","#","#","#",".",".",".",".",".",".",".",".",".",".",".","A","V",".",".",".","V","A",".",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".","#",".",".",".",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".","#",".",".",".","#",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".",".","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","A","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#","#",".",".",".",".",".",".",".","."]],
-	custom0: makeEmpty(50),
-	custom1: makeEmpty(50),
-	custom2: makeEmpty(50),
-	custom3: makeEmpty(50),
-	custom4: makeEmpty(50),
-	custom5: makeEmpty(50),
-	custom6: makeEmpty(50),
-	custom7: makeEmpty(50),
-	custom8: makeEmpty(50),
-	custom9: makeEmpty(50)};
-var triggers = {
-	base1:{},
-	base2:{},
-	base3:{},
-	base4:{"x0":[[0,"#ffffff",1]],"x1":[],"x8":[[0,"#ff00ff",20]],"x94":[[0,"#ffffff",25],[1,"#ff00ff",25]],"x160":[[1,"#ff0006",35]],"x180":[[0,"#000000",30]],"x226":[[1,"#000000",1],[0,"#ff0000",10]],"x314":[[0,"#000000",1]],"x315":[[0,"#ff8000",6]],"x353":[[0,"#ffffff",9]],"x380":[[2,"11",20]],"x418":[[0,"#93ffe1",4],[1,"#46beff",4]],"x537":[[0,"#000000",6],[1,"#ffffff",6]],"x528":[[2,"4",25]]},
-	custom0: {},
-	custom1: {},
-	custom2: {},
-	custom3: {},
-	custom4: {},
-	custom5: {},
-	custom6: {},
-	custom7: {},
-	custom8: {},
-	custom9: {}
-}
-/* format reminder
-	{	x90: [[0, "#FF0000", 100]],
-		x60: [[1, "#FFFF00", 20]],
-		x30: [[2, 10, 21]],
-		x120: [[0, "#00FFFF", 20], [1, "#000000", 20]],
-		x1000:[[0, "#00000", 0],[1, "#FFFFFF", 0],[2, 4, 0]]
-	}
-	0 obj 1 bg 2 camera
-*/
-function makeTrigDispArray(){
-	var result = [[],[],[]];
-	var klist = Object.keys(triggers["custom" + currentEditorLevel]);
-	for (i = 0; i < maps["custom" + currentEditorLevel][0].length; i++){
-		for (j = 0; j < 3; j++){
-			result[j].push("-");
-		}
-	}
-	for (i = 0; i < klist.length; i++){
-		for (j = 0; j < triggers["custom" + currentEditorLevel][klist[i]].length; j++){
-			var ulist = triggers["custom" + currentEditorLevel][klist[i]][j];
-			result[ulist[0]][Number(klist[i].substring(1))] = "O";
-			for (k = 1; k <= ulist[2]; k++){
-				result[ulist[0]][Number(klist[i].substring(1)) + k] = result[ulist[0]][klist[i].substring(1) + k] == "O" ? "O" : "=";
-			}
-		}
-	}
-	return result;
-}
-/*			       -- TRIGGER LIST --
-position: type, params
-Types:
-0: Object color, params: color, fadetime
-1: Background color, params: color, fadetime
-2: Camera position, params: position, movetime
-*/
-var chars = [".","#","Z","A","V","D","H","-","=","Q","@","Ö","~","÷","¤","X",">","O","M","U","0","1","2","3","4",")","["];
-var blocklistString = "";
-for (i = 0; i < chars.length; i++){
-	blocklistString += "<span onclick='whatToAdd=" + '"' + chars[i] + '"' + "'> " + chars[i] + " </span>" + (i == chars.length - 1 ? "" : "|");
-}
-var whatToAdd = "#";
-var inside = false;
-document.getElementById("blocklist").innerHTML = blocklistString;
-var emptyLevel = [[],[],[],[],[],[],[],[],[],[],[]];
-var editorLength = 50;
-var displaynames = {
-	base1: "Level 1",
-	base2: "Level 2",
-	base3: "Level 3",
-	base4: "Level 4",
-	custom0: "0",
-	custom1: "1",
-	custom2: "2",
-	custom3: "3",
-	custom4: "4",
-	custom5: "5",
-	custom6: "6",
-	custom7: "7",
-	custom8: "8",
-	custom9: "9"
-};
-var bests = {
-	base1: 0,
-	base2: 0,
-	base3: 0,
-	base4: 0,
-	custom0: 0,
-	custom1: 0,
-	custom2: 0,
-	custom3: 0,
-	custom4: 0,
-	custom5: 0,
-	custom6: 0,
-	custom7: 0,
-	custom8: 0,
-	custom9: 0
-};
-var startposes = {
-	custom0: false,
-	custom1: false,
-	custom2: false,
-	custom3: false,
-	custom4: false,
-	custom5: false,
-	custom6: false,
-	custom7: false,
-	custom8: false,
-	custom9: false
-};
-var freshBests = structuredClone(bests);
-var freshMaps = structuredClone(maps);
-var freshAttempts = structuredClone(attempts);
-var freshTriggers = structuredClone(triggers);
-var inEditor = false;
-var editorTarget = [0, 0];
-var triggerTarget = [0, 0];
+var startupFlag = true;
+var mainLevels = [];
+var gameWidth = 25;
+var gameHeight = 10;
+var levelHeight = 10;
+var tileString = ""; //new idea: ditch y subunit and use time based rise/fall like old times
+///////////////////////////////
+//       player stuff        //
+///////////////////////////////
 
-//html constructrors
+var player1 = {
+    y: 3, //y increases downward, n|1200 = n+1|0
+    mode: 0, gravity: 1,
+    bufferCheck: true, previousTile: false,
+    dashing: false, fallTimer: 4, var1: 0,
+    jumpTimer: 0, jumpFrames: 0, hoverFrames: 0,
+};
+var player2 = {
+    y: 3, //x and y values have subunits of 1/1200, the actual position is always rounded down
+    mode: 0, gravity: -1,
+    bufferCheck: true, previousTile: false,
+    dashing: false, fallTimer: 4, var1: 0,
+    jumpTimer: 0, jumpFrames: 0, hoverFrames: 0,
+};
+var commonStates = {
+    height: 10, width: 100,
+    x: 0, speed: 1, xSub: 0, frame: 0,
+    P2Active: false,
+};
+var customLevel = false; 
+var levelID = 0;
+var practicePoints = []; //practice checkpoints are stored as [p1, p2, common states]
+var speedValues = [100, 125, 160, 200, 240];
+var playerIcons = ["X", "O", ">", "M", "U", "Đ"] //cube, ball, wave, spider, ufo, line fly
+var gravityValues = [8, 9, 0, 8, 7, 0];
+var jumpValues = [10, 0, 0, 0, 8, 0];
 
-var editorScreen = "";
-for (i = 0; i < 11; i++){
-	editorScreen += "<p><span id='line" + i + "'>";
-	if(i!=0){editorScreen += "<br>";}
-	for (j = 0; j < 22; j++){
-		editorScreen += "<span id='" + j + "m" + i + "' class='" + (i == 0 ? "top " : "") + (i == 10 ? "bottom " : "") + (j == 0 ? "left " : "") + (j == 21 ? "right " : "") + "'" + "onmouseenter='editorTarget = ["+j+"+posX,"+i+"]'>.</span>";
-	}
-	editorScreen += "</span></p>";
-}//creates the editor dislpay so i won't have to
-var gameScreen = structuredClone(document.getElementById("screen").innerHTML);
-function triglinegen(s){
-	var result = "";
-	for (i = 0; i < 22; i++){
-		result += "<span id='" + i + "t" + s + "' onclick='triggerTarget=[" + s + "," + i + "+posX]; makeDeletor(); openTrigPage(" + s +")'>-</span>";
-	}
-	return result;
+var renderOffset = 0; //at the beginning and the end of a level, the player needs to slide in/out without the camera moving, this variable is used to control that 
+
+/*  -- TILE DEFINITION --
+    chars: string[n]            display characters in order of appearance
+    times: int[n]               time each character is visible in ms
+    timeBase: int               starting x position for oscillation
+    behavior: string[n]         how each character intercats with the player (solid, semisolid, kill, none, default)
+    colorGroup: int(1~9)[n]     number of the color to use for each character
+    *for special objects to have their intended effect, behavior must be set to default
+    
+    -- TRIGGER OBJECT DEFINITION --
+    target1: c1, c2, ... c9, bg, fg, common
+    target2: whatever that object may contain
+    offset: delay before the transition (*10ms)
+    time: duration of transition in frames (*10ms)
+    trigger object:
+    {(target1 as keys)]: {(target2 as keys): [(sparse array indexed by xpos) ...,[value, offset, time],...]}}
+    classes are useless!!!!!!!!!!
+*/
+var testTile = {
+    chars: [],
+    times: [],
+    timeBase: 0,
+    behavior: [],
+    colorGroup: []
+};
+var emptyTriggerObject = {
+    c1: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c2: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c3: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c4: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c5: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c6: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c7: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c8: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    c9: {rgbaMain: [], rgbaGlow: [], glowRadius: [], glowOffsetX: [], glowOffsetY: [], blend: []},
+    bg: {c1: [], c2: [], gradAngle: [], grad1: [], grad2: []},
+    fg: {c1: [], c2: [], gradAngle: [], grad1: [], grad2: [], blend: []},
+    common: {playerColumn: []}
+}; //this may look bad,
+var defaultValues = {
+    c1: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c2: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c3: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c4: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c5: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c6: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c7: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c8: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    c9: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    bg: {c1: [255, 255, 255, 1], c2: [255, 255, 255, 1], gradAngle: 0, grad1: 0, grad2: 100},
+    fg: {c1: [255, 255, 255, 0], c2: [255, 255, 255, 0], gradAngle: 0, grad1: 0, grad2: 100, blend: "normal"},
+    common: {playerColumn: 5}
+};
+var lastTriggerFrame = {
+    c1: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c2: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c3: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c4: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c5: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c6: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c7: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c8: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    c9: {rgbaMain: 0, rgbaGlow: 0, glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: 0},
+    bg: {c1: 0, c2: 0, gradAngle: 0, grad1: 0, grad2: 0},
+    fg: {c1: 0, c2: 0, gradAngle: 0, grad1: 0, grad2: 0, blend: 0},
+    common: {playerColumn: 0}
+}; //gosh this is SO inefficient maybe you should have the triggers saved as a key array somewere and generate these with given data whatever dude IDC
+var currentValues = structuredClone(defaultValues);
+var typeMap = {
+    rgbaMain: "color", //rgba array
+    rgbaGlow: "color",
+    c1: "color",
+    c2: "color",
+    glowRadius: "number",
+    glowOffsetX: "number",
+    glowOffsetY: "number",
+    playerColumn: "numberp", //integer
+    gradAngle: "numbera", //angle (0~360)
+    grad1: "number1", //0~1
+    grad2: "number1",
+    blend: "blend" //blend mode (string)
 }
-document.getElementById("objtrigs").innerHTML = triglinegen(0);
-document.getElementById("bgtrigs").innerHTML = triglinegen(1);
-document.getElementById("camtrigs").innerHTML = triglinegen(2);
-function rgb(r,g,b){
-	return [r,g,b];
+function arrayToRGB(a){
+    return `rgb(${a[0]} ${a[1]} ${a[2]} / ${a[3]})`
 }
-function invertLines(){
-	var currbg = eval(document.getElementById("objtrigs").style["background-color"] == "" ? "rgb(255,255,255)" : document.getElementById("objtrigs").style["background-color"]);
-	if(isNaN(currbg[0])){currbg=[255,255,255];}
-	for (i = 0; i < 3; i++){
-		currbg[i] = 255 - currbg[i];
-	}
-	currbg = ntoc(currbg);
-	document.getElementById("objtrigs").style["background-color"] = currbg;
-	document.getElementById("bgtrigs").style["background-color"] = currbg;
-	document.getElementById("camtrigs").style["background-color"] = currbg;
-}
-var csel = ""
-for (i = 0; i < 10; i++){
-	csel += "<span onclick='if(inEditor){currentEditorLevel="+ i +";goToLevel("+'"custom"+'+ i +")}else{goToLevel("+'"custom"+'+ i +")}'>"+ " " + i + " " +"</span>" + (i == 9 ? "" : "|");
-}
-document.getElementById("customlv").innerHTML = csel;
-var currentEditorLevel = 0;
-function editorChangeLen(newl){
-var oldl = structuredClone(maps["custom" + currentEditorLevel][0].length);
-	if (newl > maps["custom" + currentEditorLevel][0].length){
-		for (i = 0; i < newl - oldl; i++){
-			for (j = 0; j < 11; j++){
-				maps["custom" + currentEditorLevel][j].push(".");
-			}
-		}
-	}
-	else if (newl < oldl){
-		for (i = 0; i < 11; i++){
-			maps["custom" + currentEditorLevel][i] = maps["custom" + currentEditorLevel][i].slice(0, newl);
-			posX = Math.min(posX, newl-22);
-		}
-	}
-}
-function makeDeletor(){
-	if(triggers["custom" + currentEditorLevel]["x"+triggerTarget[1]] === undefined){
-		triggers["custom" + currentEditorLevel]["x"+triggerTarget[1]] = [];
-	}
-	for (i = 0; i < triggers["custom" + currentEditorLevel]["x"+triggerTarget[1]].length; i++){
-		if (triggers["custom" + currentEditorLevel]["x"+triggerTarget[1]][i][0] == triggerTarget[0]){
-			if (triggerTarget[0] != 2){
-				document.getElementById("removecol").style.display = "inline";
-				trigDelTarget = ["x"+triggerTarget[1], triggerTarget[0]];
-			}
-			else{
-				document.getElementById("removecam").style.display = "inline";
-				trigDelTarget = ["x"+triggerTarget[1], triggerTarget[0]];
-			}
-		}
-		else{
-			document.getElementById("removecol").style.display = "none";
-			document.getElementById("removecam").style.display = "none";
-		}
-	}
-}
-var trigDelTarget = ["x0", 0];
-function addTrigger(){
-	document.getElementById("coltrigopts").style.display = "none";
-	document.getElementById("camtrigopts").style.display = "none";
-	var exists = false;
-	var at = 0;
-	for (i = 0; i < triggers["custom" + currentEditorLevel]["x"+triggerTarget[1]].length; i++){
-		if(triggers["custom" + currentEditorLevel]["x"+triggerTarget[1]][i][0] == triggerTarget[0]){
-			exists = true;
-			at = i;
-			break;
-		}
-	}
-	if(triggerTarget[0] != 2){
-		if(exists){
-			triggers["custom" + currentEditorLevel]["x"+triggerTarget[1]][at] = [triggerTarget[0], colo.value, Number(fade.value)];
-		}
-		else{
-			triggers["custom" + currentEditorLevel]["x"+triggerTarget[1]].push([triggerTarget[0], colo.value, Number(fade.value)]);
-		}
-	}
-	else{
-		if(exists){
-			triggers["custom" + currentEditorLevel]["x"+triggerTarget[1]][at] = [triggerTarget[0], posi.value, Number(time.value)];
-		}
-		else{
-			triggers["custom" + currentEditorLevel]["x"+triggerTarget[1]].push([triggerTarget[0], posi.value, Number(time.value)]);
-		}
-	}
-}
-function removeTrigTarget(){
-	triggers["custom" + currentEditorLevel][trigDelTarget[0]] = triggers["custom" + currentEditorLevel][trigDelTarget[0]].filter(function(i){return i[0] != trigDelTarget[1]});
-	document.getElementById("coltrigopts").style.display = "none";
-	document.getElementById("camtrigopts").style.display = "none";
-	document.getElementById("removecol").style.display = "none";
-	document.getElementById("removecam").style.display = "none";
-}
-function openTrigPage(type){
-	if(type == 2){
-		document.getElementById("coltrigopts").style.display = "none";
-		document.getElementById("camtrigopts").style.display = "inline";
-	}
-	else {
-		document.getElementById("coltrigopts").style.display = "inline";
-		document.getElementById("camtrigopts").style.display = "none";
-	}
-}
-function cton(c){
+function cton(c, a){ //color formatters 
 	var d = [0, 0, 0];
 	for (i = 0; i < 3; i++){
 		d[i] = Number("0x" + c.substring(2*i+1,2*i+3));
 	}
+    if (typeof a === "number") {
+        d.push(a); //we add alpha if it exists
+    }
 	return d;
 }
-function ntoc(n){
+function ntoc(n){ //destroys alpha cannel (it's only used for setting color selectors anyway)
+    if (n.length = 4) {n.pop;}
 	var o = "#";
 	for (i = 0; i < 3; i++){
-		if (n[i] == 0){
-			o += "00";
-		}
-		else if (n[i] < 16){
-			o += "0" + n[i].toString(16);
-		}
-		else{
-			o += n[i].toString(16);
-		}
+		o += n[i].toString(16).padStart(2, "0");
 	}
 	return o;
 }
-var defaultValues = ["#000000", "#FFFFFF", 4];
-function triggerValue(type, place){
-	var poslist = [];
-	var pos2list = [];
-	var idk = false;
-	var posOfSomething = 0;
-	var lastIndex = -1;
-	var result;
-	var klist = Object.keys(triggers[level]).sort(function (a, b){
-		return Number(a.substring(1)) - Number(b.substring(1));
-	});
-	for (i = 0; i < klist.length; i++){
-		for (j = 0; j < triggers[level][klist[i]].length; j++){
-			if (triggers[level][klist[i]][j][0] == type){
-				idk = true;
-				posOfSomething = j;
-			}
-		}
-		if(idk){
-			poslist.push(Number(klist[i].substring(1)));
-			pos2list.push(posOfSomething);
-		}
-		idk = false;
-	}
-	for (i = 0; i < poslist.length; i++){
-		if(place > poslist[i]){
-			lastIndex++;
-		}
-	}
-	var cpos = (lastIndex == -1) ? 0 : poslist[lastIndex]; //current trigger position
-	var ctrigv = (lastIndex == -1) ? defaultValues[type] : triggers[level]["x" + poslist[lastIndex]][pos2list[lastIndex]][1]; //current trigger
-	var ctrigt = (lastIndex == -1) ? defaultValues[type] : triggers[level]["x" + poslist[lastIndex]][pos2list[lastIndex]][2];
-	var ptrigv = (lastIndex <= 0) ? defaultValues[type] : triggers[level]["x" + poslist[lastIndex - 1]][pos2list[lastIndex - 1]][1]; //previous trigger
-	if (lastIndex != -1){
-		if (type == 2){
-			return Math.floor(ptrigv + (ctrigv - ptrigv) * Math.min((place - cpos) / ctrigt, 1));
-		}
-		else{
-			result = [];
-			if(!Array.isArray(ctrigv)){ctrigv = cton(ctrigv);}
-			if(!Array.isArray(ptrigv)){ptrigv = cton(ptrigv);}
-			for (i = 0; i < 3; i++){
-				result.push(Math.floor(ptrigv[i] + (ctrigv[i] - ptrigv[i]) * Math.min((place - cpos) / ctrigt, 1)));
-			}
-			return ntoc(result);
-		}
-	}
-	else { 
-	return defaultValues[type];
-	}
-}
-var subpixel = 5; //0 to 9, only used for moving the editor
-var heldArrow = 0;
-var arrowSpeeds = [0, -40, -5, 5, 40];
-var solid = ["#", "Z", "D", "H"];
-var deadly = ["A", "V",];
-var tickrates = [100, 70, 50, 35, 27, 5]; //ms per frame on diffferent speeds (speed chamge works like speedhack here)(last is editor exclusive)
-var speed = 1;
-var icons = ["X", ">", "O", "M", "U"]; //icons for different gamemodes (0=cube, 1=wave, 2=ball, 3=spider, 4=ufo)
-var players = 1;
-var mode = 0; //refer to previous for explanation
-var attempt = 1;
-var attempts = {
-	base1: 0,
-	base2: 0,
-	base3: 0,
-	base4: 0,
-	custom0: 0,
-	custom1: 0,
-	custom2: 0,
-	custom3: 0,
-	custom4: 0,
-	custom5: 0,
-	custom6: 0,
-	custom7: 0,
-	custom8: 0,
-	custom9: 0
+var level = { //this will always hold the level being played/edited, we load them into this from a JSON file (?)
+    version: "3.0.0",
+    tiles: Array(levelHeight),
+    triggers: structuredClone(emptyTriggerObject),
+    initialState: [],
+    speedChanges: [], //we want to keep track of this seperately to make trigger calculations easier [position, speed] (has to be sorted)
+    //there must only be one speed chnage per column (unique x), if you try to add more than 1 then only the firts one applies
+    //doing this also means that we have to disallow speed changes in mulistate tiles and also assume that every speed change is necessary
+    startPosData: false,
 };
-var gravity = 1;
-var waveSpd = 1;
-var held = false;
-var bufferCheck = true;
-var level = "base1";
-var posX = 7;
-var posY = 8;
-var campos = 4; //tiles left of the player
-//gravity sucks here, when you jump you go up, hover, then go down.
-var jumpFrames = 0; //this tracks how many frames you will go up for
-var hoverFrames = 0; //this tracks how many frames you will hover for
-var dashing = false;
-function showMain(){
-	inEditor = false;
-	document.getElementById("customlv").style.display = "none";
-	document.getElementById("mainlv").style.display = "inline";
-	for (i = 0; i < document.getElementsByClassName("editorstuff").length; i++){
-		document.getElementsByClassName("editorstuff")[i].style.display = "none";
-	}
-	for (i = 0; i < document.getElementsByClassName("playstuff").length; i++){
-		document.getElementsByClassName("playstuff")[i].style.display = "inline";
-	}
-	document.getElementById("screen").innerHTML = gameScreen;
-	document.getElementById("notoptions").style.display = "inline";
-	document.getElementById("options").style.display = "none";
-	speed = 1;
+for (let i = 0; i < levelHeight; i++) {
+    level.tiles[i] = new Array(gameWidth); //grr why does this have to be done
 }
-function showCustom(){
-	inEditor = false;
-	document.getElementById("customlv").style.display = "inline";
-	document.getElementById("mainlv").style.display = "none";
-	for (i = 0; i < document.getElementsByClassName("editorstuff").length; i++){
-		document.getElementsByClassName("editorstuff")[i].style.display = "none";
-	}
-	for (i = 0; i < document.getElementsByClassName("playstuff").length; i++){
-		document.getElementsByClassName("playstuff")[i].style.display = "inline";
-	}
-	document.getElementById("screen").innerHTML = gameScreen;
-	document.getElementById("notoptions").style.display = "inline";
-	document.getElementById("options").style.display = "none";
-	speed = 1;
+function clamp(a, min, max){ //goes throuh arrays recusively (???????)
+    if (Array.isArray(a)){
+        for (let i = 0; i < a.length; i++){
+            a[i] = clamp(a[i], min, max);
+        }
+        return a
+    }
+    return Math.min(Math.max(a, min), max);
 }
-function goToEditor(){
-	inEditor = true;
-	document.getElementById("customlv").style.display = "inline";
-	document.getElementById("mainlv").style.display = "none";
-	for (i = 0; i < document.getElementsByClassName("editorstuff").length; i++){
-		document.getElementsByClassName("editorstuff")[i].style.display = "inline";
-	}
-	for (i = 0; i < document.getElementsByClassName("playstuff").length; i++){
-		document.getElementsByClassName("playstuff")[i].style.display = "none";
-	}
-	document.getElementById("screen").innerHTML = editorScreen;
-	document.getElementById("notoptions").style.display = "inline";
-	document.getElementById("options").style.display = "none";
-	posX = 0;
-	speed = 5;
-	level = "custom" + currentEditorLevel;
+function exists(tile){
+    if (!tile){return false}
+    if (!(Object.keys(tile).includes("timeBase") && Object.keys(tile).includes("colorGroup") && Object.keys(tile).includes("behavior") && Object.keys(tile).includes("times") && Object.keys(tile).includes("chars"))){return false;} //my god...
+    return tile.colorGroup.length != 0 && tile.chars.length != 0 && tile.times.length != 0 && tile.behavior.length != 0;
 }
-function goToOptions(){
-	document.getElementById("options").style.display = "inline";
-	document.getElementById("notoptions").style.display = "none";
+///////////////////////////////
+//        rendering          //
+///////////////////////////////
+function computeTriggerValue(target1, target2, x, subx, frame){
+    frame = frame || posToFrame(x, subx);
+    var currentTriggers = level.triggers[target1][target2];
+    var nextIndex = currentTriggers.findLastIndex((e,i) => Array.isArray(e) && (i <= x));
+    var nextTrigger = nextIndex == -1 ? [defaultValues[target1][target2],1,0] : currentTriggers[nextIndex]; //value, duration, offset
+    var currentIndex = currentTriggers.findLastIndex((e,i) => Array.isArray(e) && (i < nextIndex)); //this will be -1 if the trigger doesn't exist, in that case we use default values
+    var currentTrigger = currentIndex == -1 ? [defaultValues[target1][target2],1,0] : currentTriggers[currentIndex];
+    var currentTriggerFrame = currentTab == "edit" ? posToFrame(nextIndex, 0) : lastTriggerFrame[target1][target2];
+    var interpolationValue = clamp((frame - currentTriggerFrame - nextTrigger[2])/nextTrigger[1], 0, 1);
+
+    if(target1 == "bg" && target2 == "c2"){
+        console.log(frame, currentTriggerFrame);
+    }
+
+    if (typeMap[target2] == "blend") {return nextTrigger[0];}
+    if (typeMap[target2] == "color") {return Array(4).fill(1).map((a, b) => interpolationValue*nextTrigger[0][b] + (1-interpolationValue)*currentTrigger[0][b])}
+    //it's a regular number otherwise
+    return interpolationValue*nextTrigger[0] + (1-interpolationValue)*currentTrigger[0];
 }
-var inPractice = false;
-var inStartPosSelector = false;
-var checkpoints = [];
-function switchPracticeState(){
-	inPractice = !inPractice;
-	die();
-	if(!inPractice){
-		checkpoints = [];
-	}
+function stateAt(tile, frame){
+    if (!tile || !tile.times) {return false}
+    if (tile.times.length == 1) {return {char: tile.chars[0], behavior: tile.behavior[0], colorGroup: tile.colorGroup[0]}}
+    frame -= posToFrame(tile.timeBase, 0);
+    frame = (9999999 + frame) % tile.times.reduce((a, b) => a + b); //shitty fix for the shitty modulo of js
+    var index = 0;
+    var soFar = 0;
+    while (soFar < frame){
+        soFar += tile.times[index];
+        index++;
+    }
+    if (index == 0) {index = tile.times.length-1} //
+    return {char: tile.chars[index-1], behavior: tile.behavior[index-1], colorGroup: tile.colorGroup[index-1]};
 }
-function goToLevel(n){
-	if(!inPractice){
-		if(completionp() >= 99){bests[level] = 100;}
-		bests[level] = Math.max(completionp(), bests[level]);
-		bests[level] = Math.min(bests[level], 100);
-	}
-	inPractice = false;
-	checkpoints = [];
-	attempts[level] += 1;
-	attempt = 1;
-	level = n;
-	posX = 5;
-	posY = 7;
-	mode = 0;
-	gravity = 1;
-	speed = 1;
-	campos = 4;
-	held = false;
-	bufferCheck = true;
-	bufferNext = false;
-	if(inEditor){
-		//something important for sure
-		posX = 0;
-	}
+function tilePropertyRelative(dx, dy, pl, pr){
+    if (pl.y + dy*pl.gravity < 0 || pl.y + dy*pl.gravity >= level.tiles.length || commonStates.x + dx < 0 || commonStates.x + dx >= level.tiles[0].length){
+        return false;
+    }
+    //returns the behavior of a tile by a position relative to the player (y coord. adjsted with gravity, down is positive)
+    //use only for gameplay purposes
+    var k = stateAt(level.tiles[pl.y + dy*pl.gravity][commonStates.x + dx], commonStates.frame);
+    if (k.behavior == "default"){
+        k.behavior = "none";
+        if (solidTiles.includes(k.char)){k.behavior = "solid"}
+        if (semisolidTiles.includes(k.char)){k.behavior = "semisolid"}
+        if (deadlyTiles.includes(k.char)){k.behavior = "kill"}
+        if (specialTiles.includes(k.char)){k.behavior = "default"}
+    }
+    return k && k[pr];
 }
+var currentRenderer = -42; //requestfanimationframe id, use this to cancel the animation frame
+function render(){
+    //this bit is only run when you're in the editor -- it is enough to update editor stuff on render
+    if (currentTab == "edit"){
+        editorStates.editorSubpixel += editorStates.velocity;
+        var distance = Math.floor(editorStates.editorSubpixel/1200);
+        editorStates.x = Math.max(0, editorStates.x + distance);
+        editorStates.editorSubpixel -= 1200*distance;
+        document.getElementById("editorpos").textContent = editorStates.x;
+        document.getElementById("editormax").textContent = level.tiles[0].length;
+    } 
+    renderOffset = Math.max(commonStates.x - Math.floor(currentValues.common.playerColumn), 0); //update this to allow continuous offsets
+    renderOffset = Math.min(renderOffset, level.tiles[0].length - gameWidth);
+    if (currentTab == "edit"){
+        renderOffset = editorStates.x;
+    }
+    var renderFrame = currentTab == "edit" ? posToFrame(editorStates.x, editorStates.editorSubpixel) : commonStates.frame;
+    //apply trigger effects (base off of frame number)
+    for (var a of Object.keys(emptyTriggerObject)){
+        for (var b of Object.keys(emptyTriggerObject[a])){
+            currentValues[a][b] = computeTriggerValue(a, b, renderOffset + Math.floor(currentValues.common.playerColumn), currentTab == "edit" ? 0 : commonStates.xSub, renderFrame);
+        }
+    }
+    //render tiles
+    for (let i = 0; i < gameHeight; i++){
+        for (let j = 0; j < gameWidth; j++){
+            if (exists(level.tiles[i][j+renderOffset])){
+                var currentTile = stateAt(level.tiles[i][j+renderOffset], renderFrame);
+                var currentElement = document.getElementById(`${i}x${j}`);
+                var currentColor = currentValues[`c${currentTile.colorGroup}`];
+                currentElement.textContent = currentTile.char;
+                currentElement.style.color = arrayToRGB(currentColor.rgbaMain);
+                currentElement.style.textShadow = `${currentColor.glowOffsetX}px ${currentColor.glowOffsetY}px ${currentColor.glowRadius}px ${arrayToRGB(currentColor.rgbaGlow)}`;
+                currentElement.style.mixBlendMode = currentColor.blend;
+                if (currentTab == "edit" && !previewcolors.checked){
+                    currentElement.style.color = previewmode.checked ? noprevColors[currentTile.colorGroup] : typeprevColors[currentTile.behavior];
+                }
+            }
+            else {
+                document.getElementById(`${i}x${j}`).textContent = "\xa0"; //regular spaces may disappear so we use a non-breaking one instead to be sure
+            }
+            document.getElementById(`e${i}x${j}`).classList.remove("selected");
+        }
+    }
+    //render player, gameplay stats
+    if (currentTab != "edit"){
+        document.getElementById(`${player1.y}x${commonStates.x - renderOffset}`).textContent = playerIcons[player1.mode];
+        document.getElementById(`${player1.y}x${commonStates.x - renderOffset}`).style.color = "black";
+        if (commonStates.P2Active) {
+            document.getElementById(`${player2.y}x${commonStates.x - renderOffset}`).textContent = playerIcons[player2.mode];
+            document.getElementById(`${player2.y}x${commonStates.x - renderOffset}`).style.color = "blue";
+        }
+        document.getElementById("attemptcount").textContent = customLevel ? savefile.customAttempts[levelID] : savefile.attempts[levelID];
+        document.getElementById("percentage").textContent = Math.floor(100*(commonStates.x + commonStates.xSub/1200)/level.tiles[0].length) + "%";
+        if (currentTab == "main"){
+            document.getElementById("mainbest").textContent = savefile.bests[levelID];
+        } else {
+            document.getElementById("custombest").textContent = savefile.customBests[levelID];
+        }
+    }
+    if (inPractice){ //render practice points
+        for (p of practicePoints){
+            if(p[2].x - renderOffset > 0 && p[2].x - renderOffset < gameWidth){
+                document.getElementById(`${p[0].y}x${p[2].x - renderOffset}`).textContent = "◊";
+            }
+        }
+    }
+    if (currentTab == "edit"){
+        for (let i = 0; i < gameWidth; i++){
+            //triggers
+            var triggerElement = document.getElementById(`t${i}`);
+            var thisTriggerValue = computeTriggerValue(editorStates.tempTrigger.target1, editorStates.tempTrigger.target2, renderOffset+i, 0, false);
+            document.getElementById(`t${i}`).textContent = !!level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][i+renderOffset] ? "O" : "\xa0";
+            switch (typeMap[editorStates.tempTrigger.target2]){
+                case "color":
+                    triggerElement.style.backgroundImage = "none"; //if we added lines prevously we removed them 
+                    triggerElement.style.backgroundColor = arrayToRGB(thisTriggerValue);
+                    break;
+                case "number":
+                    drawLineGraphPart(triggerElement, thisTriggerValue/10 + 0.5);
+                    break;
+                case "numbera":
+                    drawLineGraphPart(triggerElement, thisTriggerValue/360);
+                    break;
+                case "numberp":
+                    drawLineGraphPart(triggerElement, thisTriggerValue/10);
+                    break;
+                case "number1":
+                    drawLineGraphPart(triggerElement, thisTriggerValue);
+                    break;
+            }
+            //selection
+            if (editorStates.hasSelection){
+                editorStates.selectedTiles = [];
+                for (let i = editorStates.selection[0][0]; i <= editorStates.selection[1][0]; i++){
+                    editorStates.selectedTiles.push([]);
+                    for (let j = editorStates.selection[0][1]; j <= editorStates.selection[1][1]; j++){
+                        if (i >= 0 && i < gameHeight && j-renderOffset >= 0 && j-renderOffset < gameWidth){
+                            document.getElementById(`e${i}x${j-renderOffset}`).classList.add("selected");
+                            editorStates.selectedTiles[i-editorStates.selection[0][0]].push(level.tiles[i][j]);
+                        }
+                    }
+                }
+            }
+            if (editorStates.mode == "select" && !firstSelect){
+                document.getElementById(`e${editorStates.selection[0][0]}x${editorStates.selection[0][1]-renderOffset}`).classList.add("selected"); //when you select the first
+            }
+            document.getElementById("propviewtext").textContent = previewmode.checked ? "color" : "behavior";
+            //custom object preview
+            if (shownPreview > 0 && savefile.savedObjects[shownPreview]){
+                for (let i = 0; i < savefile.savedObjects[shownPreview].length; i++){
+                    for (let j = 0; j < savefile.savedObjects[shownPreview][0].length; j++){
+                        var w = stateAt(savefile.savedObjects[shownPreview][i][j], currentRenderer); //currentrenderer stores the timestamb generated by th eanimation frame of th erender function so it functions as a global timer, division is due to units 
+                        if (w && w.behavior == "default"){
+                            w.behavior = "none";
+                            if (solidTiles.includes(w.char)){w.behavior = "solid"}
+                            if (semisolidTiles.includes(w.char)){w.behavior = "semisolid"}
+                            if (deadlyTiles.includes(w.char)){w.behavior = "kill"}
+                            if (specialTiles.includes(w.char)){w.behavior = "default"}
+                        }
+                        try {
+                            document.getElementById(`pre${i}x${j}`).style.color = previewmode.checked ? noprevColors[w.colorGroup] : typeprevColors[w.behavior];
+                            document.getElementById(`pre${i}x${j}`).textContent = exists(savefile.savedObjects[shownPreview][i][j]) ? w.char : "\xa0";
+                        }
+                        catch(ee) {/* this is only here because this likes to crash randomly, may be an evalation order issue */}
+                    }
+                }
+            }
+            //start pos.
+            if (level.startPosData && level.startPosData[2].x - renderOffset > 0 && level.startPosData[2].x - renderOffset < gameWidth){
+            document.getElementById(`${level.startPosData[0].y}x${level.startPosData[2].x - renderOffset}`).textContent = "S";
+            }
+        }
+        if (!inLevel){
+            pressedKeys = [];
+            releasedKeys  = [];
+            mousePressed = false;
+            mouseReleased = false;
+        }
+    }
+    //render bg/fg
+    var element = document.getElementById("gameBackground");
+    var values = currentValues.bg;
+    element.style.backgroundImage = `linear-gradient(${values.gradAngle}deg, ${arrayToRGB(values.c1)} ${values.grad1}%, ${arrayToRGB(values.c2)} ${values.grad2}%)`;
+    if (currentTab == "edit" && !previewcolors.checked){
+        element.style.backgroundImage = "linear-gradient(white)";
+    }
+    element = document.getElementById("gameForeground");
+    values = currentValues.fg;
+    element.style.backgroundImage = `linear-gradient(${values.gradAngle}deg, ${arrayToRGB(values.c1)} ${values.grad1}%, ${arrayToRGB(values.c2)} ${values.grad2}%)`;
+    element.style.mixBlendMode = values.blend;
+    if (currentTab == "edit" && !previewcolors.checked){
+        element.style.backgroundImage = "linear-gradient(transparent)";
+    }
+    currentRenderer = window.requestAnimationFrame(render);
+}
+function drawLineGraphPart(target, ratio){
+    target.style.backgroundImage = `linear-gradient(0deg, white ${ratio*100 - 4}%, black ${ratio*100}%, white ${ratio*100 + 4}%)`;
+}
+
+//gameplay
+
+function physicsStep(pl){ //takes a player object (to allow for duals potentially)
+    var currentTile = tilePropertyRelative(0, 0, pl, "behavior");
+    var currentSpecialCharacter = null;
+    if (tilePropertyRelative(0, 0, pl, "behavior") == "default"){
+        currentSpecialCharacter = tilePropertyRelative(0, 0, pl, "char");
+    }
+    var neighboringTiles = []; 
+    var neighboringSpecialCharacters = [];
+    for (let i = -1; i < 2; i++){
+        for (let j = -1; j < 2; j++){
+            neighboringTiles.push(tilePropertyRelative(i, j, pl, "behavior"));
+            if (tilePropertyRelative(i, j, pl, "behavior") == "default"){
+                neighboringSpecialCharacters.push(tilePropertyRelative(i, j, pl, "char"));
+            }
+        }
+    }
+    var canHitHead = neighboringSpecialCharacters.includes("H") || pl.mode == 1 || pl.mode == 4; 
+    var canWaveSlide = neighboringSpecialCharacters.includes("D");
+    var tileBelow = tilePropertyRelative(0, 1, pl, "behavior");
+    var tileAbove = tilePropertyRelative(0, -1, pl, "behavior");
+    var tileFront = tilePropertyRelative(1, 0, pl, "behavior");
+    var landedFlang = false;
+    //collisions
+    if ((tileBelow == "solid" || tileBelow == "semisolid") && pl.jumpFrames <= 0 &&
+    (pl.mode != 2 || (pl.mode == 2 && canWaveSlide))){ //stand on the floor
+        landedFlang = true;
+        if (pl.jumpFrames == 0){
+            pl.jumpTimer = 0;
+        }
+    }
+    if (tileAbove == "solid" && canHitHead){ //hitting head
+        pl.jumpFrames = 0;
+        pl.hoverFrames = 0;
+    }
+    if (pl.y < 0 || pl.y >= levelHeight){ //falling out of the level
+        die()
+    }
+    if (currentTile == "kill" || (currentTile == "solid" && (commonStates.xSub < 900 && commonStates.xSub > 300))){ //crashing into something
+        die()
+    }
+    if (landedFlang){
+        pl.fallTimer = 5;
+    } else {
+        pl.fallTimer--;
+    }
+    if (pl.falltimer > 0){
+        landedFlang = true;
+    }
+    
+    //special tile interaction
+    if (neighboringSpecialCharacters.includes("0")){ //fix this
+        commonStates.speed = 0;
+    }
+    if (neighboringSpecialCharacters.includes("1")){
+        commonStates.speed = 1;
+    }
+    if (neighboringSpecialCharacters.includes("2")){
+        commonStates.speed = 2;
+    }
+    if (neighboringSpecialCharacters.includes("3")){
+        commonStates.speed = 3;
+    }
+    if (neighboringSpecialCharacters.includes("4")){
+        commonStates.speed = 4;
+    }
+    if (neighboringSpecialCharacters.includes("5")){
+        commonStates.speed = 5;
+    }
+    if (currentSpecialCharacter == "-"){
+        pl.jumpFrames = 3;
+        pl.hoverFrames = 2;
+    }
+    if (currentSpecialCharacter == "="){
+        pl.gravity *= -1;
+        pl.jumpFrames = 0;
+        pl.hoverFrames = 0;
+        pl.y += pl.gravity;
+    }
+    if (neighboringSpecialCharacters.includes(")")){
+        pl.gravity = 1;
+    }
+    if (neighboringSpecialCharacters.includes("[")){
+        pl.gravity = -1;
+    }
+    if (neighboringSpecialCharacters.includes("X")){
+        pl.mode = 0;
+    }
+    if (neighboringSpecialCharacters.includes("O")){
+        pl.mode = 1;
+    }
+    if (neighboringSpecialCharacters.includes(">")){
+        pl.mode = 2;
+    }
+    if (neighboringSpecialCharacters.includes("M")){
+        pl.mode = 3;
+    }
+    if (neighboringSpecialCharacters.includes("U")){
+        pl.mode = 4;
+    }
+    if (neighboringSpecialCharacters.includes("Đ")){
+        pl.mode = 5;
+    }
+    if (neighboringSpecialCharacters.includes("ß")){
+        commonStates.P2Active = true;
+        player2.y = player1.y
+        player2.bufferCheck = true;
+        player2.dashing = player1.dashing;
+        player2.fallTimer = 0;
+        player2.gravity = -player1.gravity;
+        player2.hoverFrames = 0;
+        player2.jumpFrames = 0;
+        player2.mode = player1.mode;
+        player2.jumpTimer = 0;
+    }
+    if (neighboringSpecialCharacters.includes("&")){
+        commonStates.P2Active = false;
+    }
+    //click/hold interaction
+    if (mousePressed || (isMouseDown && pl.bufferCheck)){
+        switch (pl.mode){ //cube, ball, wave, spider, ufo, ???
+            case 0:
+                if (landedFlang) {
+                    pl.jumpTimer = 0;
+                    pl.jumpFrames = 2;
+                    pl.hoverFrames = 1;
+                }
+                break;
+            case 1:
+                if (landedFlang){
+                    pl.gravity *= -1;
+                }
+                break;
+            case 2:
+                pl.jumpTimer = 0;
+                pl.jumpFrames = 9999;
+                pl.hoverFrames = 0;
+                break;
+            case 3:
+                if (landedFlang){
+                    pl.gravity *= -1;
+                    let dy = 0;
+                    while (tilePropertyRelative(0, dy, pl, "behavior") != "solid"){
+                        dy++;
+                        if (pl.y+dy*pl.gravity < 0 || pl.y+dy*pl.gravity > levelHeight){
+                            die();
+                        }
+                    }
+                    pl.y += dy*pl.gravity-pl.gravity; 
+                }
+                break;
+            case 4:
+                pl.jumpTimer = 0;
+                pl.jumpFrames = 2;
+                pl.hoverFrames = 0;
+                break;
+            case 5:
+                pl.jumpTimer = 0;
+                pl.jumpFrames = 0;
+                pl.hoverFrames = 9999;
+                pl.gravity *= -1;
+                break;
+        }
+        //orb interaction
+        if (neighboringSpecialCharacters.includes("Q") && pl.mode != 2 && pl.mode != 5){
+            pl.jumpTimer = 0;
+            pl.jumpFrames = 2;
+            pl.hoverFrames = 1;
+        }
+        if (neighboringSpecialCharacters.includes("@")){
+            pl.gravity *= -1;
+            if (pl.mode != 2) {
+                pl.jumpFrames = 0;
+                pl.hoverFrames = 0;
+            }
+        }
+        if (neighboringSpecialCharacters.includes("Ö")){
+            pl.gravity *= -1;
+            if (pl.mode != 2 && pl.mode != 5){
+                pl.jumpTimer = 0;
+                pl.jumpFrames = 2;
+                pl.hoverFrames = 1;
+            }
+        }
+        if (neighboringSpecialCharacters.includes("¤")){
+            pl.gravity *= -1;
+            let dy = 0;
+            while (tilePropertyRelative(0, dy, pl, "behavior") != "solid"){
+                dy++;
+                if (pl.y+dy*pl.gravity < 0 || pl.y+dy*pl.gravity > levelHeight){
+                    die();
+                }
+            }
+            pl.y += dy*pl.gravity-pl.gravity; 
+        }
+        if (neighboringSpecialCharacters.includes("~")){
+            pl.dashing = true;
+            pl.jumpFrames = 0;
+        }
+        if (neighboringSpecialCharacters.includes("÷")){
+            pl.dashing = true;
+            pl.gravity *= -1;
+            pl.jumpFrames = 0;
+        }
+        pl.bufferCheck = false;
+    }
+    //release interaction
+    if (mouseReleased){
+        switch (pl.mode){ //cube, ball, wave, spider, ufo, ???
+            case 0:
+                break;
+            case 1:
+                break;
+            case 2:
+                pl.jumpFrames = 0;
+                pl.hoverFrames = 0;
+                break;
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                pl.jumpFrames = 0;
+                pl.hoverFrames = 0;
+                break;
+        }
+        pl.bufferCheck = true;
+        pl.dashing = false;
+    }
+    //calculate the movemets
+    let yDir = 1;
+    if (pl.hoverFrames > 0 || landedFlang || pl.dashing){yDir = 0}
+    if (pl.jumpFrames > 0){yDir = -1}
+    if (pl.jumpTimer <= 0){
+        pl.y += pl.gravity * yDir;
+        pl.jumpTimer = gravityValues[pl.mode];
+        if (pl.mode == 2 || pl.mode == 5){pl.jumpTimer = Math.floor(1200/speedValues[commonStates.speed])}
+        if (pl.jumpFrames == 0){
+            pl.hoverFrames--;
+        }
+        else {
+            pl.jumpFrames--;
+        }
+    }
+    pl.jumpTimer--;
+    pl.previousTile = currentTile;
+}
+//attempt counter template (commonStates.customLevel ? savefile.customAttempts : savefile.attempts)[commonStates.levelID]
+function gameLoop(){
+    if (pressedKeys.includes("a")){
+        practicePoints.push([structuredClone(player1), structuredClone(player2), structuredClone(commonStates)]);
+    }
+    if (pressedKeys.includes("s")){
+        practicePoints.pop();
+    }
+    physicsStep(player1);
+    if (commonStates.P2Active) {physicsStep(player2)}
+    var lastX = structuredClone(commonStates.x);
+    commonStates.xSub += speedValues[commonStates.speed];
+    if (commonStates.xSub > 1200) {commonStates.xSub -= 1200; commonStates.x += 1}
+    if (commonStates.xSub < 0) {commonStates.xSub += 1200; commonStates.x -= 1}
+    commonStates.frame += 1;
+    for (let i of Object.keys(lastTriggerFrame)){
+        for (let j of Object.keys(lastTriggerFrame[i])){
+            if (level.triggers[i][j][commonStates.x] && commonStates.x > lastX){
+                lastTriggerFrame[i][j] = commonStates.frame;
+            }
+        }
+    }
+    if (commonStates.x >= level.tiles[0].length){ // level completion
+        win();
+    }
+    pressedKeys = [];
+    releasedKeys  = [];
+    mousePressed = false;
+    mouseReleased = false;
+}
+var replayerID = -42;
 function die(){
-	if (!inPractice){
-	bests[level] = Math.max(completionp(), bests[level]);
-	bests[level] = Math.min(bests[level], 100);
-	}
-	attempt += 1;
-	attempts[level] += 1;
-	if (!inPractice || checkpoints.length == 0){
-		posX = 5;
-		posY = 7;
-		mode = 0;
-		gravity = 1;
-		speed = 1;
-		campos = 4;
-	}
-	else{
-		posX = checkpoints[checkpoints.length - 1][0];
-		posY = checkpoints[checkpoints.length - 1][1];
-		mode = checkpoints[checkpoints.length - 1][2];
-		gravity = checkpoints[checkpoints.length - 1][3];
-		speed = checkpoints[checkpoints.length - 1][4];
-		campos = checkpoints[checkpoints.length - 1][5];
-		jumpFrames = checkpoints[checkpoints.length - 1][6];
-		hoverFrames = checkpoints[checkpoints.length - 1][7];
-	}
-	if (startposes[level]){
-		posX = startposes[level][1];
-		posY = startposes[level][0];
-		mode = startposes[level][2];
-		gravity = startposes[level][3];
-		speed = startposes[level][4];
-		campos = startposes[level][5];
-	}
-	held = false;
-	bufferCheck = true;
-	bufferNext = false;
-	deathFlag = true;
+    if (!inPractice && !level.startPosData){
+        if (customLevel){
+            savefile.customBests[levelID] = Math.max(savefile.customBests[levelID], Math.floor(100*(commonStates.x + commonStates.xSub/1200)/level.tiles[0].length));
+        } else {
+            savefile.bests[levelID] = Math.max(savefile.bests[levelID], Math.floor(100*(commonStates.x + commonStates.xSub/1200)/level.tiles[0].length));
+        }
+    }
+    if(!currentTab == "edit"){window.cancelAnimationFrame(currentRenderer);}
+    clearInterval(levelLoopId);
+    for (let i = 0; i < gameHeight; i++){
+        for (let j = 0; j < gameWidth; j++){
+            document.getElementById(`${i}x${j}`).textContent = "\xa0";
+        }
+    }
+    if (savefile.settings.autoRetry && inLevel){
+        replayerID = setTimeout(playLevel, 200, customLevel, levelID);
+    }
 }
-function completionp(){
-	return posX == levelLength ? 100 : Math.floor(100*((posX)/levelLength()));
+function win(){
+    if (!inPractice && !level.startPosData){
+        if (customLevel){
+            savefile.customBests[levelID] = 100;
+        } else {
+            savefile.bests[levelID] = 100;
+        }
+    }
+    document.getElementById("percentage").textContent = "Level complete!";
+    window.cancelAnimationFrame(currentRenderer);
+    clearInterval(levelLoopId);
 }
-function levelLength(){
-	return maps[level][0].length - 23;
+///////////////////////////////
+//          editor           //
+///////////////////////////////
+
+var editorStates = {
+    x: 0,
+    editorSubpixel: 0,
+    velocity: 0,
+    mode: "add", //add, select,...?
+    colorDialogTarget: "undefined",
+    tempColor: {rgbaMain: [0, 0, 0, 1], rgbaGlow: [0, 0, 0, 0], glowRadius: 0, glowOffsetX: 0, glowOffsetY: 0, blend: "normal"},
+    tempTile: structuredClone(testTile),
+    tempTrigger: {target1: "c1", target2: "rgbaMain", value: null, offset: 0, duration: 0},
+    clipboardTrigger: null,
+    triggerPosition: 0,
+    numberDialogState: {value: 0, min: 0, max: 1, integer: false},
+    whatToAdd: [[{}]], //2d tile array
+    whatToOverwrite: {chars: [true], times: [true], timeBase: [true], behavior: [true], colorGroup: [true], stateNumber: [true]}, //add later
+    hasSelection: false,
+    selection: [[0, 0], [0, 0]], //top left x,y; bottom right x,y
+    selectedTiles: [[{}]],
 }
-function arrayify(str){
-	var result = [];
-	for (i = 0; i < str.length; i++){
-		result.push(str[i]);
-	}
-	return result;
+function posToFrame(x, subx){ //only used in editor previews ugh guys please appreciate this
+    if (x < 0){return 0} //needed due to how triggers are calculated
+    var result = 0;
+    subx += x * 1200 //convert to pure subpixles
+    var thisTriggerDistance = 42; //if the remaining subx is less than this we know that we finish before the next speed change
+    if (level.speedChanges.length == 0) {
+        return Math.floor(subx / speedValues[1]); //special case for a level with no speed changes
+    } 
+    else {
+        thisTriggerDistance = (level.speedChanges[0][0]-1) * 1200;
+        if (subx < thisTriggerDistance){
+            return Math.floor(subx / speedValues[1]); //special case for first speed change (ends before it)
+        }
+        else {
+            result = thisTriggerDistance / speedValues[1] // (doesn't end before)
+            subx -= thisTriggerDistance;
+        }
+    }
+    for (let i = 0; i < level.speedChanges.length-1; i++){
+        thisTriggerDistance = level.speedChanges[i+1][0] - level.speedChanges[i][0];
+        thisTriggerDistance *= 1200; //convert to subpixels
+        var currentSpeed = speedValues[level.speedChanges[i][1]];
+        if (subx < thisTriggerDistance){
+            result += Math.floor(subx / currentSpeed);
+            return result;
+        }
+        else {
+            result += thisTriggerDistance / currentSpeed
+            subx -= thisTriggerDistance;
+        }
+    }
+    result += Math.floor(subx / speedValues[level.speedChanges[level.speedChanges.length-1][1]]);
+    return result;
 }
-function stringify(arr){
-	var result = "";
-	for (i = 0; i < arr.length; i++){
-		result += arr[i];
-	}
-	return result;
+function removeNthElement(a, n){
+    return a.slice(0, n).concat(a.slice(n+1, a.length)); //this is the main target for optimization
 }
-function drawLevel(){
-	var wmap = inEditor ? structuredClone(maps["custom" + currentEditorLevel]) : structuredClone(maps[level]);
-	if (inEditor){
-	if (startposes["custom" + currentEditorLevel]){
-		wmap[startposes["custom" + currentEditorLevel][0]][startposes["custom" + currentEditorLevel][1]] = "T"
-	}
-	var trigDispArray = makeTrigDispArray();
-		for (i = 0; i < 22; i++){
-			for (j = 0; j < 11; j++){
-				document.getElementById(i + "m" + j).textContent = wmap[j][i+posX];
-			}
-			for (j = 0; j < 3; j++){
-				document.getElementById(i + "t" + j).textContent = trigDispArray[j][i+posX];
-			}
-		}
-		document.getElementById('0t0').style.color=triggerValue(0,0+posX);document.getElementById('1t0').style.color=triggerValue(0,1+posX);document.getElementById('2t0').style.color=triggerValue(0,2+posX);document.getElementById('3t0').style.color=triggerValue(0,3+posX);document.getElementById('4t0').style.color=triggerValue(0,4+posX);document.getElementById('5t0').style.color=triggerValue(0,5+posX);document.getElementById('6t0').style.color=triggerValue(0,6+posX);document.getElementById('7t0').style.color=triggerValue(0,7+posX);document.getElementById('8t0').style.color=triggerValue(0,8+posX);document.getElementById('9t0').style.color=triggerValue(0,9+posX);document.getElementById('10t0').style.color=triggerValue(0,10+posX);document.getElementById('11t0').style.color=triggerValue(0,11+posX);document.getElementById('12t0').style.color=triggerValue(0,12+posX);document.getElementById('13t0').style.color=triggerValue(0,13+posX);document.getElementById('14t0').style.color=triggerValue(0,14+posX);document.getElementById('15t0').style.color=triggerValue(0,15+posX);document.getElementById('16t0').style.color=triggerValue(0,16+posX);document.getElementById('17t0').style.color=triggerValue(0,17+posX);document.getElementById('18t0').style.color=triggerValue(0,18+posX);document.getElementById('19t0').style.color=triggerValue(0,19+posX);document.getElementById('20t0').style.color=triggerValue(0,20+posX);document.getElementById('21t0').style.color=triggerValue(0,21+posX);document.getElementById('0t1').style.color=triggerValue(1,0+posX);document.getElementById('1t1').style.color=triggerValue(1,1+posX);document.getElementById('2t1').style.color=triggerValue(1,2+posX);document.getElementById('3t1').style.color=triggerValue(1,3+posX);document.getElementById('4t1').style.color=triggerValue(1,4+posX);document.getElementById('5t1').style.color=triggerValue(1,5+posX);document.getElementById('6t1').style.color=triggerValue(1,6+posX);document.getElementById('7t1').style.color=triggerValue(1,7+posX);document.getElementById('8t1').style.color=triggerValue(1,8+posX);document.getElementById('9t1').style.color=triggerValue(1,9+posX);document.getElementById('10t1').style.color=triggerValue(1,10+posX);document.getElementById('11t1').style.color=triggerValue(1,11+posX);document.getElementById('12t1').style.color=triggerValue(1,12+posX);document.getElementById('13t1').style.color=triggerValue(1,13+posX);document.getElementById('14t1').style.color=triggerValue(1,14+posX);document.getElementById('15t1').style.color=triggerValue(1,15+posX);document.getElementById('16t1').style.color=triggerValue(1,16+posX);document.getElementById('17t1').style.color=triggerValue(1,17+posX);document.getElementById('18t1').style.color=triggerValue(1,18+posX);document.getElementById('19t1').style.color=triggerValue(1,19+posX);document.getElementById('20t1').style.color=triggerValue(1,20+posX);document.getElementById('21t1').style.color=triggerValue(1,21+posX);document.getElementById('0t2').style.color=triggerValue(2,0+posX);document.getElementById('1t2').style.color=triggerValue(2,1+posX);document.getElementById('2t2').style.color=triggerValue(2,2+posX);document.getElementById('3t2').style.color=triggerValue(2,3+posX);document.getElementById('4t2').style.color=triggerValue(2,4+posX);document.getElementById('5t2').style.color=triggerValue(2,5+posX);document.getElementById('6t2').style.color=triggerValue(2,6+posX);document.getElementById('7t2').style.color=triggerValue(2,7+posX);document.getElementById('8t2').style.color=triggerValue(2,8+posX);document.getElementById('9t2').style.color=triggerValue(2,9+posX);document.getElementById('10t2').style.color=triggerValue(2,10+posX);document.getElementById('11t2').style.color=triggerValue(2,11+posX);document.getElementById('12t2').style.color=triggerValue(2,12+posX);document.getElementById('13t2').style.color=triggerValue(2,13+posX);document.getElementById('14t2').style.color=triggerValue(2,14+posX);document.getElementById('15t2').style.color=triggerValue(2,15+posX);document.getElementById('16t2').style.color=triggerValue(2,16+posX);document.getElementById('17t2').style.color=triggerValue(2,17+posX);document.getElementById('18t2').style.color=triggerValue(2,18+posX);document.getElementById('19t2').style.color=triggerValue(2,19+posX);document.getElementById('20t2').style.color=triggerValue(2,20+posX);document.getElementById('21t2').style.color=triggerValue(2,21+posX);
-	}
-	else{
-		if(inPractice){
-			for (i = 0; i < checkpoints.length; i++){
-				wmap[checkpoints[i][1]][checkpoints[i][0]] = "p";
-			}
-		}
-		wmap[posY][posX] = icons[mode];
-		document.getElementById("line0").innerHTML = stringify(wmap[0]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-		document.getElementById("line1").innerHTML = stringify(wmap[1]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-		document.getElementById("line2").innerHTML = stringify(wmap[2]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-		document.getElementById("line3").innerHTML = stringify(wmap[3]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-		document.getElementById("line4").innerHTML = stringify(wmap[4]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-		document.getElementById("line5").innerHTML = stringify(wmap[5]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-		document.getElementById("line6").innerHTML = stringify(wmap[6]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-		document.getElementById("line7").innerHTML = stringify(wmap[7]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-		document.getElementById("line8").innerHTML = stringify(wmap[8]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-		document.getElementById("line9").innerHTML = stringify(wmap[9]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-		document.getElementById("line10").innerHTML = stringify(wmap[10]).substring(posX - campos, posX + 22 - campos).replaceAll(".", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); //this breaks if you make it a loop for some reason
-	}
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+function exportLevel(from, filename){ //a questionable inclusion for sure
+    var dataArray = Array(...enc.encode(JSON.stringify(from)));
+    var EDataArray = [];
+    var decoderArray = [];
+    var EDecoderArray = []; //extra bits; we are using a 9-bit encoding so we seperate out the 9th bits and store them separaely
+    var foundPairs = [];
+    var nextValue = 256;
+    var occurences = new Map();
+    while (nextValue < 512){
+        //find best pair
+        var pairs = dataArray.map((a, b, c) => 512*c[b]+c[b+1]);
+        pairs.pop();
+        var foundPair = -1
+        for (p of pairs) {
+            occurences.set(p, occurences.get(p)+1 || 1);
+            if (occurences.get(p) > 2){
+                foundPair = p; //uses a greedy pair-finder, may replace with "find most frequent pair" if it has little effect on prefromance
+                break;
+            }
+        }
+        if (foundPair < 0){break;} // this means nothing was found
+        //combine entries
+        decoderArray.push(Math.floor(p/512), p%512);
+        for (let i = pairs.length-1; i>=0; i--){
+            if (pairs[i] == foundPair){
+                dataArray = removeNthElement(dataArray, i);
+                dataArray[i] = nextValue;
+                i -= 1;
+            }
+        }
+        nextValue++;
+        occurences.clear();
+    }
+    EDataArray = dataArray.map(x => Math.floor(x/256));
+    dataArray = dataArray.map(x => x % 256);
+    EDecoderArray = decoderArray.map(x => Math.floor(x/256));
+    decoderArray = decoderArray.map(x => x % 256);
+    var edt2 = [];
+    var ede2 = [];
+    for (let i = 0; i < EDataArray.length; i+=8){ //process arrays....
+        var edts = 0;
+        for (let j = 0; j < 8; j++){
+            if(i+j < EDataArray.length){edts += EDataArray[i+j]*(2**(7-j))}
+        }
+        edt2.push(edts);
+    }
+    for (let i = 0; i < EDecoderArray.length; i+=8){
+        var edes = 0;
+        for (let j = 0; j < 8; j++){
+            if(i+j < EDecoderArray.length){edes += EDecoderArray[i+j]*(2**(7-j))}
+        }
+        ede2.push(edes);
+    }
+    EDataArray = edt2;
+    EDecoderArray = ede2;
+
+    var fullDataArray = [Math.floor(dataArray.length/2**24), Math.floor(dataArray.length%2**24 / 2**16), Math.floor(dataArray.length%2**16 / 2**8), Math.floor(dataArray.length%2**8),
+    Math.floor(decoderArray.length/2**24), Math.floor(decoderArray.length%2**24 / 2**16), Math.floor(decoderArray.length%2**16 / 2**8), Math.floor(decoderArray.length%2**8),
+    Math.floor(EDataArray.length/2**24), Math.floor(EDataArray.length%2**24 / 2**16), Math.floor(EDataArray.length%2**16 / 2**8), Math.floor(EDataArray.length%2**8)];
+    fullDataArray = fullDataArray.concat(dataArray, decoderArray, EDataArray, EDecoderArray);
+    //pack into 8bit array
+    var exportArray = new Uint8Array(fullDataArray);
+    var exportData = new Blob([exportArray]);
+    //export
+    var exportURL = URL.createObjectURL(exportData);
+    var q = document.createElement("a");
+    q.download = `${filename}.tdl`;
+    q.href = exportURL;
+    q.click();
+    URL.revokeObjectURL(exportURL);
 }
-var screenSize = 12;
-var showPercents = true;
-var showAtts = true;
-function exportMap(){
-	var exString = ""
-	var exDone = [];
-	var exPart = ""
-	for (i = 0; i < 11; i++){
-		for (j = 0; j < maps["custom" + currentEditorLevel][i].length; j++){
-			exPart += maps["custom" + currentEditorLevel][i][j];
-		}
-		exDone.push(exPart);
-		exPart = "";
-	}
-	exString = btoa(JSON.stringify(exDone)) + " " + btoa(JSON.stringify(triggers["custom" + currentEditorLevel]));
-	navigator.clipboard.writeText(exString).then(() => {
-		/* clipboard successfully set */
-		alert("Level copied to clipboard");
-	}, () => {
-		/* clipboard write failed */
-		prompt("Copy your level from here", exDone);
-	});
+function importLevel(x, after){
+    x.arrayBuffer().then((data) => {
+        var w = new Uint8Array(data);
+        var q = Array(...w);
+        //find datas
+        var dataOffset = 12;
+        var decodeOffset = dataOffset + q[0]*2**24 + q[1]*2**16 + q[2]*2**8 + q[3];
+        var EDataOffset = decodeOffset + q[4]*2**24 + q[5]*2**16 + q[6]*2**8 + q[7];
+        var EDecodeOffset = EDataOffset+ q[8]*2**24 + q[9]*2**16 + q[10]*2**8 + q[11];
+        
+        var dataArray = q.slice(dataOffset, decodeOffset);
+        var decoderArray = q.slice(decodeOffset, EDataOffset);
+        var EDataArray = q.slice(EDataOffset, EDecodeOffset);
+        var EDecoderArray = q.slice(EDecodeOffset);
+
+        dataArray = dataArray.map((v, i) => v + (EDataArray[Math.floor(i/8)] & 2**(7-i%8) ? 256 : 0));
+        decoderArray = decoderArray.map((v, i) => v + (EDecoderArray[Math.floor(i/8)] & 2**(7-i%8) ? 256 : 0)); //and now i understand why little-endian exists
+
+        var nextValue = Math.max(...dataArray);
+        for (let i=decoderArray.length-2; i>=0; i-=2){
+            dataArray = dataArray.flatMap((d) => d == nextValue ? [decoderArray[i], decoderArray[i+1]] : d);
+            nextValue--;
+        }
+        importRaw(dec.decode(new Uint8Array(dataArray)), after); //shockingly i don't feel terrible about this code
+    });
 }
-function importMap(){
-	var imText = prompt("Paste the level here");
-	var imDone = [];
-	var errorFlag = false;
-	var slot = Number(prompt("Which slot to save to? (0 to 9)"));
-	imText = imText.split(" ");
-	imTextM = JSON.parse(atob(imText[0]));
-	if (typeof slot != "number" || slot < 0 || slot > 9){
-		alert("invalid slot number");
-		errorFlag = true;
-	}
-	else {
-		imDone.push(arrayify(imTextM[0]));
-		imDone.push(arrayify(imTextM[1]));
-		imDone.push(arrayify(imTextM[2]));
-		imDone.push(arrayify(imTextM[3]));
-		imDone.push(arrayify(imTextM[4]));
-		imDone.push(arrayify(imTextM[5]));
-		imDone.push(arrayify(imTextM[6]));
-		imDone.push(arrayify(imTextM[7]));
-		imDone.push(arrayify(imTextM[8]));
-		imDone.push(arrayify(imTextM[9]));
-		imDone.push(arrayify(imTextM[10])); //again. this breaks if you make it a loop. why does this keep happening
-	}
-	if (!errorFlag){
-		maps["custom" + slot] = imDone;
-		triggers["custom" + slot] = JSON.parse(atob(imText[1]));
-		currentEditorLevel = slot;
-	}
+function exportRaw(from){
+    navigator.clipboard.writeText(JSON.stringify(from));
+    window.alert("Copied to clipboard");
 }
-function blockAt(x, y){
-	if(y < 0){y = 0}
-	if(y > 10){y = 10}
-	return maps[level][y][x];
+var tempData = {};
+function importRaw(data, after){
+    try {
+        var tempLevel = JSON.parse(data);
+        if (tempLevel){
+            tempData = JSON.parse(data);
+            after();
+        }
+        else {
+            window.alert("Import error: no object found");
+        }
+    } catch (ee) {
+        window.alert(`Import error: corrupted data`);
+    }
 }
-function blockNe(){
-	return [blockAt(posX-1,posY-1),blockAt(posX-1,posY),blockAt(posX-1,posY+1),blockAt(posX,posY-1),blockAt(posX,posY),blockAt(posX,posY+1),blockAt(posX+1,posY-1),blockAt(posX+1,posY),blockAt(posX+1,posY+1)];
-	//returns player block and neighbors as an array
+function addTiles(y, x){
+    changeEditorLength(Math.max(editorStates.whatToAdd.length + x, level.tiles[0].length));
+    for (let i = 0; i < editorStates.whatToAdd[0].length; i++){
+        for (let j = 0; j < editorStates.whatToAdd.length; j++){
+            if (y+j >= 0 && x+i < level.tiles[0].length && exists(editorStates.whatToAdd[j][i])){ //temporary fix... replacement options to be added later, or never
+                var thisTile = editorStates.whatToAdd[j][i];
+                if (level.speedChanges.map(a => a[0]).indexOf(x+i) != -1 && level.speedChanges[level.speedChanges.map(a => a[0]).indexOf(x+i)][2] == y+j){ //remove (overwrite) speed changes
+                    level.speedChanges = removeNthElement(level.speedChanges, level.speedChanges.map(a => a[0]).indexOf(x+i));
+                }
+                if (speedchangeTiles.includes(thisTile.chars[0]) && !level.speedChanges.map(a => a[0]).includes(x+i)){ //add speed changes
+                    level.speedChanges.push([x+i, Number(thisTile.chars[0]), y+j]);
+                    level.speedChanges.sort((a, b) => a[0] - b[0]); //must be sorted for thing to work properly
+                }
+                level.tiles[y+j][x+i] = structuredClone(thisTile);
+            }
+        }
+    }
 }
-// game loop
-function step(){
-	deathFlag = false;
-	var dy = gravity;
-	if(!inEditor){
-	//handle jumping
-	if(held){
-		switch (mode){
-		case 0:
-			if(solid.includes(blockAt(posX, posY + gravity))){
-				jumpFrames = 2;
-				hoverFrames = 1;
-				bufferCheck = false;
-			}
-			break;
-		case 1:
-			waveSpd = -1;
-			break;
-		case 2:
-			if(solid.includes(blockAt(posX, posY + gravity))){
-				gravity = gravity * -1;
-				bufferCheck = false;
-			}
-			break;
-		case 3:
-			if(solid.includes(blockAt(posX, posY + gravity)) && bufferCheck){
-				gravity = gravity * -1;
-				while (!solid.includes(blockAt(posX, posY + gravity))){
-					posY += gravity;
-					if(posY > 10 || posY+dy < 0){
-						break;
-					}
-				}
-				posY += gravity;
-				bufferCheck = false;
-			}
-			break;
-		case 4:
-			if(bufferCheck){
-			jumpFrames = 2;
-			hoverFrames = 1;
-			bufferCheck = false;
-			}
-			break;
-		}
-		if(blockNe().includes("Q") && mode != 1 && bufferCheck){
-			jumpFrames = 2;
-			hoverFrames = 1;
-			bufferCheck = false;
-		}
-		if(blockNe().includes("@") && bufferCheck){
-			gravity = gravity * -1;
-			jumpFrames = 0;
-			hoverFrames = 0;
-			bufferCheck = false;
-		}
-		if(blockNe().includes("Ö") && bufferCheck){
-			gravity = gravity * -1;
-			if(mode != 1){
-				jumpFrames = 2;
-				hoverFrames = 1;
-			}
-			bufferCheck = false;
-		}
-		if(blockNe().includes("~") && bufferCheck){
-			dashing = true;
-			bufferCheck = false;
-			jumpFrames = 0;
-			hoverFrames = 0;
-		}
-		if(blockNe().includes("÷") && bufferCheck){
-			gravity = gravity * -1;
-			dashing = true;
-			bufferCheck = false;
-			jumpFrames = 0;
-			hoverFrames = 0;
-		}
-		if(blockNe().includes("¤") && bufferCheck){
-			gravity = gravity * -1;
-				while (!solid.includes(blockAt(posX, posY + gravity))){
-					posY += gravity;
-					if(posY > 10 || posY+dy < 0){
-						break;
-					}
-				}
-				posY += gravity;
-				bufferCheck = false;
-		}
-	}
-	//handle special blocks
-	if(blockAt(posX, posY) == "-" && mode != 1){
-		jumpFrames = 3;
-		hoverFrames = 2;
-	}
-	if(blockAt(posX, posY) == "="){
-		gravity = gravity * -1;
-		dy = dy * -1;
-	}
-	if(blockNe().includes(")")){
-		gravity = 1;
-		dy = 1;
-		hoverFrames = 1;
-	}
-	if(blockNe().includes("[")){
-		gravity = -1;
-		dy = -1;
-		hoverFrames = 1;
-	}
-	if(blockNe().includes("0")){
-		speed = 0;
-	}
-	if(blockNe().includes("1")){
-		speed = 1;
-	}
-	if(blockNe().includes("2")){
-		speed = 2;
-	}
-	if(blockNe().includes("3")){
-		speed = 3;
-	}
-	if(blockNe().includes("4")){
-		speed = 4;
-	}	
-	if(blockNe().includes("X")){
-		mode = 0;
-	}	
-	if(blockNe().includes(">")){
-		mode = 1;
-		jumpFrames = 0;
-		hoverFrames = 0;
-	}	
-	if(blockNe().includes("O")){
-		mode = 2;
-	}
-	if(blockNe().includes("M")){
-		mode = 3;
-	}
-	if(blockNe().includes("U")){
-		mode = 4;
-	}
-	if(jumpFrames > 0){
-	dy = gravity*-1;
-	jumpFrames--;
-	}
-	else if (hoverFrames > 0){
-	dy = 0;
-	hoverFrames--;
-	}
-	if(mode == 1){
-		dy = gravity * waveSpd;
-	}
-	//collision checks
-	//check if we hit our head (if we did we die)
-	if(solid.includes(blockAt(posX+1, posY+dy)) && dy == gravity * -1 && (mode == 2 || ((mode == 0 || mode == 3) && blockNe().includes("H")) || (mode == 1 && blockNe().includes("D")))){
-		dy = 0;
-		hoverFrames = 0;
-	}
-	if(dy == gravity * -1 && solid.includes(blockAt(posX+1,posY+dy)) && mode != 2 && !(mode == 1 && blockNe().includes("D"))){
-		die();
-	}
-	//if a block is below, do not fall
-	if(solid.includes(blockAt(posX+1, posY+dy)) && dy == gravity){
-		dy = 0;
-		if(mode == 1 && !blockNe().includes("D")){
-			die();
-		}
-	}
-	if(solid.includes(blockAt(posX+1, posY+dy)) && mode == 1 && waveSpd == -1 && blockNe().includes("D")){
-		dy = 0;
-	}
-	if(dashing){
-		dy = 0;
-	}
-	if(!held && dashing){
-		dashing = false;
-		jumpFrames = 0;
-		hoverFrames = 0;
-	}
-	//if you hit something, die
-	if(solid.includes(blockAt(posX+1, posY+dy)) || deadly.includes(blockAt(posX+1, posY+dy))){
-		die();
-	}
-	//no corner clipping
-	if((solid.includes(blockAt(posX+1, posY)) || deadly.includes(blockAt(posX+1, posY))) && (solid.includes(blockAt(posX, posY+dy)) || deadly.includes(blockAt(posX, posY+dy)))){
-		die();
-	}
-	//oob check
-	if(posY+dy > 10 || posY+dy < 0){
-		die();
-	}
-	posY = posY + dy;
-	if(posX <= levelLength()){
-	posX++;
-	}
-	campos = triggerValue(2, posX);
-	//update displays
-	document.getElementById("mapname").textContent = displaynames[level];
-	document.getElementById("totalatts").textContent = attempts[level];
-	document.getElementById("bestp").textContent = bests[level];
-	document.getElementById("attempt").textContent = showAtts ? "Attempt " + attempt : "";
-	document.getElementById("precent").textContent = showPercents ? completionp() + "%" : "";
-	if(posX >= levelLength()){
-	document.getElementById("precent").textContent = "Level complete!";
-	}
-	document.getElementById("sha").textContent = showAtts ? "Hide" : "Show";
-	document.getElementById("shp").textContent = showPercents ? "Hide" : "Show";
-	document.getElementById("practicebar").style.display = inPractice ? "inline" : "none";
-	document.getElementById("eep").textContent = inPractice ? "Exit" : "Enter";
-	document.getElementById("aso").textContent = autosaveOn ? "on" : "off";
-	}
-	else{
-		speed = 5;
-		if(held && inside){
-			if(!inStartPosSelector){
-				for (i = 0; i < whatToAdd.length; i++){
-					maps["custom" + currentEditorLevel][editorTarget[1]][editorTarget[0]+i] = whatToAdd[i];
-				}
-			}
-			else{
-				startposes["custom" + currentEditorLevel] = [editorTarget[1], editorTarget[0]];
-				var q = prompt("Enter the start pos parameters like this: a,b,c,d (no spaces)\na: gamemode(0: cube, 1: wave, 2: ball, 3: spider, 4: ufo)\nb: gravity (1: normal, -1: reverse)\nc: speed (0 to 4)\nd: camera position");
-				q = q.split(",");
-				startposes["custom" + currentEditorLevel] = startposes["custom" + currentEditorLevel].concat(q);
-				for(i = 2; i < 6; i++){
-					startposes["custom" + currentEditorLevel][i] = Number(startposes["custom" + currentEditorLevel][i]);
-				}
-				inStartPosSelector = false;
-			}
-		}
-		document.getElementById("blocktoadd").textContent = whatToAdd;
-		document.getElementById("cssp").textContent = inStartPosSelector ? "Click onscreen to s" : "S";
-		document.getElementById("catd").textContent = inStartPosSelector ? ", or click here to delete the current one" : "";
-		document.getElementById("currentedit").textContent = currentEditorLevel;
-		subpixel += arrowSpeeds[heldArrow];
-		while (subpixel > 9){
-			subpixel -= 10;
-			posX = Math.min(levelLength(), posX+1);
-		}
-		while (subpixel < 0){
-			subpixel += 10;
-			posX = Math.max(posX-1, 0);
-		}
-		
-	}
-	//after all is done, draw shit
-	document.getElementById('display').style['font-size'] = Number(screenSize) + "pt";
-	document.getElementById("line0").style.color = triggerValue(0, posX);
-	document.getElementById("line0").style["background-color"] = triggerValue(1, posX);
-	document.getElementById("line1").style.color = triggerValue(0, posX);
-	document.getElementById("line1").style["background-color"] = triggerValue(1, posX);
-	document.getElementById("line2").style.color = triggerValue(0, posX);
-	document.getElementById("line2").style["background-color"] = triggerValue(1, posX);
-	document.getElementById("line3").style.color = triggerValue(0, posX);
-	document.getElementById("line3").style["background-color"] = triggerValue(1, posX);
-	document.getElementById("line4").style.color = triggerValue(0, posX);
-	document.getElementById("line4").style["background-color"] = triggerValue(1, posX);
-	document.getElementById("line5").style.color = triggerValue(0, posX);
-	document.getElementById("line5").style["background-color"] = triggerValue(1, posX);
-	document.getElementById("line6").style.color = triggerValue(0, posX);
-	document.getElementById("line6").style["background-color"] = triggerValue(1, posX);
-	document.getElementById("line7").style.color = triggerValue(0, posX);
-	document.getElementById("line7").style["background-color"] = triggerValue(1, posX);
-	document.getElementById("line8").style.color = triggerValue(0, posX);
-	document.getElementById("line8").style["background-color"] = triggerValue(1, posX);
-	document.getElementById("line9").style.color = triggerValue(0, posX);
-	document.getElementById("line9").style["background-color"] = triggerValue(1, posX);
-	document.getElementById("line10").style.color = triggerValue(0, posX);
-	document.getElementById("line10").style["background-color"] = triggerValue(1, posX); //same here. making this a loop crashes stuff. for some reason
-	drawLevel();
-	setTimeout(step, tickrates[speed] + (deathFlag ? 250 : 0));
+function changeEditorLength(newlen){
+    if (newlen == level.tiles[0].length){return;}
+    newlen = clamp(newlen, gameWidth, 4096); //arbitrary max level length
+    if (level.tiles[0].length > newlen){
+        //make smaller
+        while (level.tiles[0].length > newlen){
+            for (var tr of level.tiles){
+                tr.pop();
+            }
+        }
+    }
+    else {
+        //make larger
+        while (level.tiles[0].length < newlen){
+            for (var tr of level.tiles){
+                tr.push(null);
+            }
+        }
+    }
 }
-//actually calling the game loop
-function saveGame(){
-	localStorage.setItem("maps", JSON.stringify(maps));
-	localStorage.setItem("triggers", JSON.stringify(triggers));
-	localStorage.setItem("bests", JSON.stringify(bests));
-	localStorage.setItem("attempts", JSON.stringify(attempts));
-	localStorage.setItem("size", screenSize);
-	localStorage.setItem("showp", showPercents);
-	localStorage.setItem("showa", showAtts);
-	localStorage.setItem("as", autosaveOn);
+var firstSelect = true;
+function selectTiles(x, y){
+    if (firstSelect){
+        editorStates.selection[0] = [x, y];
+        firstSelect = false;
+    }
+    else {
+        editorStates.selection[1] = [x, y];
+        if (editorStates.selection[0][0] > editorStates.selection[1][0]){
+            var c = editorStates.selection[0][0];
+            editorStates.selection[0][0] = editorStates.selection[1][0];
+            editorStates.selection[1][0] = c;
+        }
+        if (editorStates.selection[0][1] > editorStates.selection[1][1]){
+            var cc = editorStates.selection[0][1];
+            editorStates.selection[0][1] = editorStates.selection[1][1];
+            editorStates.selection[1][1] = cc;
+        } //fuck you
+        editorStates.mode = "add";
+        editorStates.hasSelection = true;
+        firstSelect = true;
+        editorStates.selectedTiles = [];
+        for (let i = editorStates.selection[0][0]; i <= editorStates.selection[1][0]; i++){
+            editorStates.selectedTiles.push([]);
+            for (let j = editorStates.selection[0][0]; j <= editorStates.selection[1][0]; j++){
+                editorStates.selectedTiles[i-editorStates.selection[0][0]].push(level.tiles[i][j]);
+            }
+        }
+        document.getElementById("selectbtn").style.display = "none";
+        document.getElementById("selectoptions").style.display = "inline-block";
+    }
 }
-function loadGame(){
-	maps = JSON.parse(localStorage.getItem("maps"));
-	triggers = JSON.parse(localStorage.getItem("triggers"));
-	bests = JSON.parse(localStorage.getItem("bests"));
-	attempts = JSON.parse(localStorage.getItem("attempts"));
-	screenSize = Number(JSON.parse(localStorage.getItem("size")));
-	showPercents = JSON.parse(localStorage.getItem("showp"));
-	showAtts = JSON.parse(localStorage.getItem("showa"));
-	autosaveOn = JSON.parse(localStorage.getItem("as"));
+function fillSelecion(){
+    var fillPattern = deletemode.checked ? [[null]] : editorStates.whatToAdd;
+    for (let i = editorStates.selection[0][0]; i <= editorStates.selection[1][0]; i++){
+            for (let j = editorStates.selection[0][1]; j <= editorStates.selection[1][1]; j++){
+                level.tiles[i][j] = fillPattern[i % fillPattern.length][j % fillPattern[0].length]
+            }
+        }
 }
-var autosaveOn = false;
-var saver;
-function swicthAutosave(){
-	autosaveOn = !autosaveOn;
-	if (autosaveOn){
-		saver = setInterval(saveGame, 60000);
-	}
-	else{
-		clearInterval(saver);
-	}
+var inLevel = false;
+var inPractice = false;
+var levelLoopId;
+function playLevel(cust, num){
+    for (let i of Object.keys(lastTriggerFrame)){
+        for (let j of Object.keys(lastTriggerFrame[i])){
+            lastTriggerFrame[i][j] = 0;
+        }
+    }
+    window.cancelAnimationFrame(currentRenderer);
+    clearInterval(levelLoopId);
+    if(startupFlag){return;}
+    var loadPP = levelID == num && customLevel == cust && inPractice && practicePoints.length > 0;
+    if (!loadPP){
+        practicePoints = [];
+    }
+    if (level.startPosData){
+        loadPP = true;
+        practicePoints[0] = level.startPosData;
+    }
+    player1 = loadPP ? structuredClone(practicePoints[practicePoints.length-1][0]) : {
+    y: 3,
+    mode: 0, gravity: 1,
+    bufferCheck: true, previousTile: false,
+    dashing: false, fallTimer: 4, var1: 0,
+    jumpTimer: 0, jumpFrames: 0, hoverFrames: 0,};
+
+    player2 = loadPP ? structuredClone(practicePoints[practicePoints.length-1][1]) : {
+    y: 3,
+    mode: 0, gravity: -1,
+    bufferCheck: true, previousTile: false,
+    dashing: false, fallTimer: 4, var1: 0,
+    jumpTimer: 0, jumpFrames: 0, hoverFrames: 0,};
+
+    commonStates = loadPP ? structuredClone(practicePoints[practicePoints.length-1][2]) : {
+    x: 0, speed: 1, xSub: 0, frame: 0,
+    P2Active: false,};
+
+    levelID = num;
+    customLevel = cust;
+    level = cust ? structuredClone(savefile.maps[num]) : structuredClone(mainLevels[num]);
+    inLevel = true;
+    if (cust) {savefile.customAttempts[num]++;} else {savefile.attempts[num]++;}
+    render();
+    levelLoopId = setInterval(gameLoop, 10);
 }
-function wipeGame(){
-	if (confirm("Are you sure you want to wipe everything?")){
-		localStorage.setItem("maps", JSON.stringify(freshMaps));
-		localStorage.setItem("triggers", JSON.stringify(freshTriggers));
-		localStorage.setItem("bests", JSON.stringify(freshBests));
-		localStorage.setItem("attempts", JSON.stringify(freshAttempts));
-		localStorage.setItem("size", "12");
-		localStorage.setItem("showp", "true");
-		localStorage.setItem("showa", "true");
-		localStorage.setItem("as", "true");
-	}
+function exitLevel(){
+    window.cancelAnimationFrame(currentRenderer);
+    clearInterval(levelLoopId);
+    inLevel = false;
 }
-function wipeStats(){
-	localStorage.setItem("bests", JSON.stringify(freshBests));
-	localStorage.setItem("attempts", JSON.stringify(freshAttempts));
+var savefile = {
+    settings: {
+        autoRetry: true,
+        gameSize: 12,
+        autoCheckpoints: false,
+        hotkeys: true,
+        showAttempts: true,
+        showPrecentage: true,
+    },
+    savedObjects: Array(16),
+    bests: [],
+    customBests: Array(32).fill(0),
+    attempts: [],
+    customAttempts: Array(32).fill(0),
+    maps: Array(32).fill(level),
+};
+///////////////////////////////
+//     html constructors     //
+///////////////////////////////
+function makeFiller(){ //creates an empty element the same size as the game screen
+    var q = ""
+    for (let i = 0; i < gameWidth; i++){q += "&nbsp;"}
+    for (let i = 0; i < gameHeight; i++){q += "<br>"}
+    return q;
 }
-step();
-document.addEventListener("keydown", function(){held = true;})
-document.addEventListener("keyup", function(){waveSpd = 1; held = false; if(mode != 3){bufferCheck = true;}})
+tileString += "<span id=playertile></span>"
+tileString += `<span id="gameBackground">${makeFiller()}</span><span id="gameForeground">${makeFiller()}</span>`;
+tileString += "<span id='editorInterface'>";
+for (let i = 0; i < gameHeight; i++){
+    for (let j = 0; j < gameWidth; j++){
+        tileString += `<span id="e${i}x${j}" class="editortile" onmouseenter="tileHoverHandler(${i},${j},false)" onmousedown="tileHoverHandler(${i},${j},true)">&nbsp;</span>`
+    }
+    tileString += "<br>" //TODO add a subcontainer to each tile which is absolutely positioned and draw to those to truly fix rendering forever
+}
+tileString += "</span>"
+tileString += "<span id='gameInterface'>";
+for (let i = 0; i < gameHeight; i++){
+    for (let j = 0; j < gameWidth; j++){
+        tileString += `<span id="c${i}x${j}" class="gametilecontainer"><span id="${i}x${j}" class="gametile">&nbsp;</span>&nbsp;</span>`
+    }
+    tileString += "<br>"
+}
+tileString += "</span>"
+document.getElementById("game").innerHTML = tileString;
+
+var currentTab = "blablabla"
+var tabs = {
+    main: ["main", "container", "practice", "gpstats"],
+    custom: ["custom", "container", "practice", "slotselect", "gpstats"],
+    edit: ["edit", "container", "editorunder", "editorInterface", "slotselect"],
+    settings: ["settings"]
+};
+var everyTab = ["main", "container", "custom", "practice", "edit", "editorunder", "settings", "editorInterface", "slotselect", "gpstats"]; //questionable
+function switchTab(tabname){
+    die();
+    practicePoints = [];
+    window.cancelAnimationFrame(currentRenderer);
+    clearInterval(levelLoopId);
+    clearTimeout(replayerID);
+    //what to do when switching FROM this tab
+    switch (tabname){
+        case "main":
+            break;
+        case "custom":
+            savefile.maps[selections.slotnumber] = structuredClone(level);
+            break;
+        case "edit":
+            window.cancelAnimationFrame(currentRenderer);
+            break;
+        case "settings":
+            break;
+    }
+    document.getElementById("game").classList.remove(currentTab);
+    document.getElementById("game").classList.add(tabname);
+    for (t of everyTab){
+        document.getElementById(t).style.display = tabs[tabname].includes(t) ? "block" : "none";
+    }
+    currentTab = tabname;
+    //what to do when switching TO this tab
+    switch (tabname){
+        case "main":
+            customLevel = false;
+            break;
+        case "custom":
+            customLevel = true;
+            level = structuredClone(savefile.maps[selections.slotnumber]);
+            break;
+        case "edit":
+            render();
+            break;
+        case "settings":
+            break;
+    }
+}
+switchTab("main");
+var selections = {}
+function buildSelector(name, target, options, otherfn, condition){ //otherfn is called when an option is selected (supply as string)
+    condition ||= "true";
+    //selections[name] = options[0];
+    document.getElementById(target).classList.add("selector");
+    var result = `<span id="${name}-text">${options[0]}</span><span class="expander" onclick="if(${condition}){document.getElementById('${name}-options').style.display='flex'}">+</span>
+                <span id="${name}-options" class="selectionoptions" style="display:none">`
+        for (let i = 0; i < options.length; i++){
+            result += `<span class="selectionoption ${window.navigator.userAgent.includes("Firefox")?"ff-fix":""}" onclick="document.getElementById('${name}-options').style.display='none';
+                    document.getElementById('${name}-text').textContent='${options[i]}';
+                    selections['${name}']='${options[i]}';${otherfn}">${options[i]}</span><br>`;
+        }
+    result += `</span>`;
+    document.getElementById(target).innerHTML = result; //html has selection menus built in ... but im quirky like that
+    document.getElementById(target).children[2].firstChild.click(); //initalize values
+}
+function destroySelector(name){
+    selections["name"] = null;
+}
+var blendModes = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
+function syncSelectors(){
+    for (const [key, value] of Object.entries(selections)){
+        document.getElementById(`${key}-text`).textContent = value;
+    }
+}
+var tileRowPage = 0;
+var tileRowsPerPage = 3;
+var activeTileRows = 0;
+function addNewTileRow(){
+    activeTileRows++;
+    editorStates.tempTile.chars.push("");
+    editorStates.tempTile.times.push(0);
+    editorStates.tempTile.colorGroup.push(1);
+    editorStates.tempTile.behavior.push("default");
+    var characterContainer = document.getElementById("charcontainer");
+    var addingIndex = characterContainer.childElementCount;
+    var currentRow = characterContainer.appendChild(document.createElement("tr"));
+    currentRow.id = `tilerow${addingIndex}`;
+    currentRow.innerHTML = `<td class="tile-char"><input type="text" name="ttext${addingIndex}" id="ttext${addingIndex}" minlength="1" maxlength="2" size="1" onchange="editorStates.tempTile.chars[${addingIndex}] = String.fromCodePoint(ttext${addingIndex}.value.codePointAt(0))" /></td>
+                            <td class="tile-color"><span id="colselect${addingIndex}"></span></td>
+                            <td class="tile-length"><input type="number" name="tlength${addingIndex}" id="tlength${addingIndex}" size="10" onchange="editorStates.tempTile.times[${addingIndex}] = Number(tlength${addingIndex}.value)" /></td>
+                            <td class="tile-behavior"><span id="behaviorselect${addingIndex}"></span></td>`;
+    buildSelector(`tcolor${addingIndex}`, `colselect${addingIndex}`, [1,2,3,4,5,6,7,8,9], `editorStates.tempTile.colorGroup[${addingIndex}] = Number(selections.tcolor${addingIndex})`);
+    buildSelector(`tbehavior${addingIndex}`, `behaviorselect${addingIndex}`, ["solid", "semisolid", "kill", "none", "default"], `editorStates.tempTile.behavior[${addingIndex}] = selections.tbehavior${addingIndex}`);
+    goToTileRowPage(tileRowPage);
+}
+function removeTileRow(){
+    if (!document.getElementById("charcontainer").hasChildNodes()){return true;} //check if there is already nothing there
+    if (document.getElementById("charcontainer").childElementCount == tileRowPage * tileRowsPerPage + 1){tileRowPage--;}
+    activeTileRows--;
+    document.getElementById("charcontainer").lastElementChild.remove();
+    editorStates.tempTile.chars.pop();
+    editorStates.tempTile.times.pop();
+    editorStates.tempTile.colorGroup.pop();
+    editorStates.tempTile.behavior.pop();
+    goToTileRowPage(tileRowPage);
+}
+function syncTileRows(){
+    //used when loading a tile(s) into the tile editor
+    if (editorStates.whatToAdd.length == 1 && editorStates.whatToAdd[0].length == 1){ //one tile being loaded, make rows
+        document.getElementById("singletile").style.display = "inline-block";
+        document.getElementById("multitile").style.display = "none";
+        var selectedTile = editorStates.whatToAdd[0][0];
+        //adjust row number
+        while (activeTileRows < selectedTile.chars.length){
+            addNewTileRow();
+        }
+        while (activeTileRows > selectedTile.chars.length){
+            removeTileRow();
+        }
+        //load data
+        for (let i = 0; i < activeTileRows; i++){
+            document.getElementById(`ttext${i}`).value = selectedTile.chars[i];
+            document.getElementById(`tlength${i}`).value = selectedTile.times[i];
+            selections[`tcolor${i}`] = selectedTile.colorGroup[i];
+            selections[`tbehavior${i}`] = selectedTile.behavior[i];
+        }
+        syncSelectors();
+    }
+    else { //multile tiles being loaded, use multiple selection dialog
+        document.getElementById("singletile").style.display = "none";
+        document.getElementById("multitile").style.display = "inline-block";
+    }
+}
+function goToTileRowPage(page){
+    if (page < 0) {return;}
+    var totalRows = document.getElementById("charcontainer").childElementCount;
+    if (totalRows <= page * tileRowsPerPage){return;}
+    tileRowPage = page;
+    for (let i = 0; i < totalRows; i++){
+        document.getElementById(`tilerow${i}`).style.display = "none";
+        if (i >= page * tileRowsPerPage && i < totalRows && i < (page+1) * tileRowsPerPage) {
+            document.getElementById(`tilerow${i}`).style.display = "table-row";
+        }
+    }
+}
+//maybe make a custom color selector too?
+
+//trigger row
+tileString = "";
+for (let i = 0; i < gameWidth; i++){
+    tileString += `<span id="t${i}" class="gametile" onclick="openTriggerMenu(${i})">&nbsp;</span>`;
+}
+document.getElementById("triggerrow").innerHTML = tileString;
+buildSelector("ttarget1", "target1", Object.keys(defaultValues), "buildSelector('ttarget2', 'target2', Object.keys(emptyTriggerObject[selections.ttarget1]), 'editorStates.tempTrigger.target2 = selections.ttarget2'); editorStates.tempTrigger.target1 = selections.ttarget1; editorStates.tempTrigger.target2 = Object.keys(emptyTriggerObject[selections.ttarget1])[0];");
+buildSelector("tvblendx", "tvblendx", blendModes, "tvblend.value = selections.tvblendx"); //silly workaround
+buildSelector("slotnumber", "slotnumber", Array(32).fill(0).map((x, i) => i), ` if (currentTab == 'edit'){
+                                                                                    savefile.maps[levelID] = structuredClone(level);
+                                                                                }
+                                                                                levelID = selections.slotnumber;
+                                                                                level = structuredClone(savefile.maps[levelID]);
+                                                                                die();
+                                                                                clearTimeout(replayerID);`, "true");
+buildSelector("mainlvid", "mainlvid", Array(5).fill(0).map((x, i) => i+1), "playLevel(true, Number(selections.mainlvid))", "true");
+function openTriggerMenu(pos){
+    if (document.getElementById("tvalue").style.display == "block"){return;} //dont open multiple at once
+    document.getElementById("tvalue").style.display = "block";
+    document.getElementById(`tvalue-${typeMap[editorStates.tempTrigger.target2]}`).style.display = "inline";
+    document.getElementById("triggerdelete").style.display = "none";
+        document.getElementById("triggercopy").style.display = "none";
+    var toLoad = level.triggers[editorStates.tempTrigger.target1][editorStates.tempTrigger.target2][editorStates.x + pos];
+    if (toLoad){ //load trigger if it exists
+        switch (typeMap[editorStates.tempTrigger.target2]){
+            case "color":
+                tvcolor.value = ntoc(toLoad[0]);
+                tvcolora.value = toLoad[0][3];
+                break;
+            case "blend":
+                selections.tvblendx = toLoad[0];
+                break;
+            default: //it's a number otherwise
+                document.getElementById(`tv${typeMap[editorStates.tempTrigger.target2]}`).value = toLoad[0];
+        }
+        tlength.value = toLoad[1];
+        toffset.value = toLoad[2];
+        //options only needed for dealing with triggers that exist
+        document.getElementById("triggerdelete").style.display = "inline";
+        document.getElementById("triggercopy").style.display = "inline";
+    }
+    //only show paste when type matches
+    document.getElementById("triggerpaste").style.display = (editorStates.clipboardTrigger && typeMap[editorStates.tempTrigger.target2] == typeMap[editorStates.clipboardTrigger[2]]) ? "inline" : "none";
+    document.getElementById(`t${pos}`).classList.add("active");
+    editorStates.triggerPosition = pos;
+}
+function addTrigger(){
+    var triggerValue = document.getElementById(`tv${typeMap[selections.ttarget2]}`).value;
+    switch (typeMap[selections.ttarget2]){
+        case "color":
+            triggerValue = cton(triggerValue, Number(tvcolora.value));
+            break;
+        case "number": case "numbera": case "numberp": case "number1":
+            triggerValue = Number(triggerValue);
+    }
+    level.triggers[selections.ttarget1][selections.ttarget2][editorStates.x + editorStates.triggerPosition] = [triggerValue, Number(tlength.value), Number(toffset.value)]; //i hope this is all cloned
+    //also close the trigger menu
+    document.getElementById("tvalue").style.display = "none";
+    document.getElementById(`tvalue-${typeMap[selections.ttarget2]}`).style.display = "none"; //breaks if you change the target2 while the menu is open
+}
+
+var tableElement = document.getElementById("chartable").appendChild(document.createElement("table"));
+tableElement.id = "cttable";
+for (let i = 0; i < 4; i++){
+    var currentRow = tableElement.appendChild(document.createElement("tr"));
+    for (let j = 0; j < 32; j++){
+        var currentElementContainer = currentRow.appendChild(document.createElement("td"));
+        var currentElement = currentElementContainer.appendChild(document.createElement("span"));
+        var currentElementSpacer = currentElementContainer.appendChild(document.createElement("span"));
+        currentElementSpacer.textContent = "\xa0";
+        currentElement.classList.add("gametile");
+        currentElement.id = `ct${i}x${j}`;
+        currentElement.addEventListener("click", () => navigator.clipboard.writeText(String.fromCodePoint(chartablePage*128 + i*32 + j)))
+    } 
+}
+var deadlyTiles = ["A", "V", "Ж"];
+var solidTiles = ["#", "Z", "Ш"];
+var semisolidTiles = ["T"];
+var specialTiles = ["@", "Ö", "¤", "÷", "-", "=", "~", "Q", ")", "[", "0", "1", "2", "3", "4", "D", "H", "X", "O", ">", "M", "U", "Đ", "ß", "&"];
+var speedchangeTiles = ["0", "1", "2", "3", "4"];
+function buildChartable(page){
+    document.getElementById("ctrange").textContent = `${(page*128).toString(16)}-${(page*128 + 127).toString(16)}`
+    for (let i = 0; i < 4; i++){
+        for (let j = 0; j < 32; j++){
+            var currentElement = document.getElementById(`ct${i}x${j}`);
+            var char = String.fromCodePoint(page*128 + i*32 + j);
+            currentElement.textContent = char;
+            currentElement.style.backgroundColor = "transparent";
+            if (deadlyTiles.includes(char)){
+                currentElement.style.backgroundColor = "#FF6060";
+            }
+            if (solidTiles.includes(char)){
+                currentElement.style.backgroundColor = "#B0B0B0";
+            }
+            if (semisolidTiles.includes(char)){
+                currentElement.style.backgroundColor = "#A0A0F0";
+            }
+            if (specialTiles.includes(char)){
+                currentElement.style.backgroundColor = "#00FFFF";
+            }
+        } 
+    } 
+}
+var chartablePage = 0;
+buildChartable(0);
+var savingCustom = false;
+var savingFromSelection = false;
+var shownPreview = -1;
+for (let i = 0; i < 2; i++){
+    var r = document.getElementById("savedobjs").appendChild(document.createElement("tr"));
+    for (let j = 0; j < 8; j++){
+        var c = r.appendChild(document.createElement("td"));
+        c.textContent = String.fromCodePoint(65 + j + 8*i); //uppercase letters
+        c.addEventListener("click", () => {
+            if (!savingCustom){
+                editorStates.whatToAdd = savefile.savedObjects[j + 8*i];
+            }
+            else if (savingFromSelection){
+                savefile.savedObjects[j + 8*i] = editorStates.selectedTiles;
+                savingCustom = false;
+            }
+            else {
+                savefile.savedObjects[j + 8*i] = editorStates.whatToAdd;
+                savingCustom = false;
+            }
+            document.getElementById("saveobj").textContent = "Save object";
+            document.getElementById("savesel").textContent = "Save selection";
+        });
+        c.addEventListener("mouseenter", () => {
+            //create tiles
+            shownPreview = j + 8*i;
+            var instring = "";
+            let n = 0;
+            let k = 0;
+            if (!savefile.savedObjects[j + 8*i]) {return;}
+            for (var u of savefile.savedObjects[j + 8*i]){
+                k = 0;
+                for (var v of u){
+                    var w = stateAt(v, currentRenderer/10); //currentrenderer stores the timestamb generated by th eanimation frame of th erender function so it functions as a global timer, division is due to units 
+                    if (w && w.behavior == "default"){
+                        w.behavior = "none";
+                        if (solidTiles.includes(w.char)){w.behavior = "solid"}
+                        if (semisolidTiles.includes(w.char)){w.behavior = "semisolid"}
+                        if (deadlyTiles.includes(w.char)){w.behavior = "kill"}
+                        if (specialTiles.includes(w.char)){w.behavior = "default"}
+                    }
+                    instring += (w && v && exists(v)) ? `<span id="pre${n}x${k}" display="block" style="color: ${previewmode.checked ? noprevColors[w.colorGroup] : typeprevColors[w.behavior]}">${w.char}</span>` : `<span id="pre${n}x${k}">&nbsp;</span>`;
+                    k++;
+                }
+                instring += "<br>"
+                n++;
+            }
+            document.getElementById("savedobjpreview").innerHTML = instring;
+            document.getElementById("savedobjpreview").style.display = "block";
+        });
+        c.addEventListener("mouseleave", () => {
+            document.getElementById("savedobjpreview").style.display = "none";
+            shownPreview = -1;
+        });
+    }
+}
+var noprevColors = [null, "rgb(255 0 0)", "rgb(255 156 0)", "rgb(255 255 0)", "rgb(131 255 0)", "rgb(0 255 131)", "rgb(0 190 255)", "rgb(0 0 255)", "rgb(187 0 255)", "rgb(255 0 212)"];
+var typeprevColors = {
+    solid: "rgb(0 0 0)",
+    semisolid: "rgb(64 64 128)",
+    kill: "rgb(255 0 0)",
+    special: "rgb(0 255 255)",
+    none: "rgb(220 220 220)",
+};
+///////////////////////////////
+//         load data         //
+///////////////////////////////
+
+const levelLoader = new XMLHttpRequest(); //fuck promises
+function loadLevel(name){
+    levelLoader.open("GET", `http://azertite055.github.io/maps/${name}`); //hardcoded url lol
+    levelLoader.responseType = "blob";
+    levelLoader.send();
+} //in the release version this will run at startup
+levelLoader.onloadend = (e) => {
+    importLevel(levelLoader.response, level);
+};
+/* load main levels -- uncomment in final (IF I HAD ANY)
+for (let i = 0; i < 5; i++){
+    loadLevel(`map${i}`);
+    mainLevels.push(structuredClone(level));
+}
+*/
+function loadSavefile(data){
+    savefile = structuredClone(data);
+    //setup toggles to make sense
+    setautoretry.checked = savefile.settings.autoRetry;
+    setdispsize.checked = savefile.settings.gameSize;
+    setshowatts.checked = savefile.settings.showAttempts;
+    setshowperc.checked = savefile.settings.showPrecentage;
+    level = structuredClone(savefile.maps[Number(levelID)]);
+    if (level.startPosData){
+        document.getElementById("startpospart1").textContent = "Remove start position";
+    }
+}
+if (localStorage.getItem("newtextdashsave")){
+    loadSavefile(JSON.parse(localStorage.getItem("newtextdashsave")));
+}
+///////////////////////////////
+//      handling stuff       //
+///////////////////////////////
+function handleStartposSetter(){
+    if (level.startPosData){
+        level.startPosData = false;
+        document.getElementById("startpospart1").textContent = "Set start position";
+    }
+    else {
+        editorStates.mode="startpos";
+        document.getElementById("startpospart1").textContent = "Select position on editor";
+    }
+}
+function tileHoverHandler(x, y, press){ //x and y are display coords, press is true when this is called from a click (false when called from hover)
+    y += editorStates.x;
+    if (currentTab == "edit" && (isMouseDown || press)){
+        switch (editorStates.mode) {
+            case "add":
+                if (deletemode.checked) {
+                    level.tiles[x][y] = null;
+                    if (level.speedChanges.map(a => a[0]).indexOf(y) != -1 && level.speedChanges[level.speedChanges.map(a => a[0]).indexOf(y)][2] == x){ //remove (overwrite) speed changes
+                        level.speedChanges = removeNthElement(level.speedChanges, level.speedChanges.map(a => a[0]).indexOf(y));
+                    }
+                    if (y == level.tiles[0].length-1){ //shorten editor only if we remove the last tile
+                        let q = true;
+                        let w = y;
+                        while (q && w>=gameWidth){
+                            q = true;
+                            for (let i=0; i<10; i++){
+                                q &&= !exists(level.tiles[i][w]);
+                            }
+                            if(q){w--}
+                        }
+                        changeEditorLength(w+1);
+                    }
+                } 
+                else {
+                    addTiles(x, y);
+                }
+                break;
+            case "select":
+                if (press){
+                    selectTiles(x, y);
+                }
+                break;
+            case "startpos":
+                document.getElementById("startpospart1").textContent = "Remove start position";
+                editorStates.mode = "add";
+                level.startPosData = [{
+                    y: 0,
+                    mode: 0, gravity: -1,
+                    bufferCheck: true, previousTile: false,
+                    dashing: false, fallTimer: 4, var1: 0,
+                    jumpTimer: 0, jumpFrames: 0, hoverFrames: 0,
+                },null,{
+                    x: 0, speed: 1, xSub: 0, frame: 0,
+                    P2Active: false,
+                }];
+                level.startPosData[0].y = x;
+                level.startPosData[0].mode = Number(prompt("Enter gamemode number (refer to editor guide)"));
+                level.startPosData[0].gravity = Number(prompt("Enter gravity value (1 or -1)"));
+                level.startPosData[1] = structuredClone(level.startPosData[0]);
+                level.startPosData[2].x = y;
+                level.startPosData[2].speed = Number(prompt("Enter speed value (0~4)"));
+                break;
+        }
+    }
+}
+
+var pressedKeys = [];
+var heldKeys = [];
+var releasedKeys = [];
+document.addEventListener("keydown", function(e){
+    pressedKeys.push(e.key); //cleared on every logic frame
+    heldKeys.push(e.key);
+});
+document.addEventListener("keyup", function(e){
+    releasedKeys.push(e.key); //cleared on every logic frame
+    heldKeys = heldKeys.filter(x => x != e.key); //removes the key in question from the array
+});
+
+var isMouseDown = false;
+var mousePressed = false;
+var mouseReleased = false;
+document.addEventListener("mousedown", function(e){
+    isMouseDown = true;
+    mousePressed = true; //cleared on every logic frame
+});
+document.addEventListener("mouseup", function(e){
+    isMouseDown = false;
+    mouseReleased = true //cleared on every logic frame
+    editorStates.velocity = 0;
+});
+document.addEventListener("mousemove", function(e){
+    document.getElementById("savedobjpreview").style.top = `${e.y}px`;
+    document.getElementById("savedobjpreview").style.left = `${e.x}px`;
+});
+window.addEventListener("beforeunload", (ev) =>{
+    if(currentTab=="edit"){savefile.maps[Number(levelID)] = structuredClone(level)};
+    localStorage.setItem("newtextdashsave", JSON.stringify(savefile));
+});
+startupFlag = false;
 </script>
-</body>
 </html>
