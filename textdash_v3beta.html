@@ -1828,14 +1828,14 @@ var typeprevColors = {
 
 const levelLoader = new XMLHttpRequest(); //fuck promises
 function loadLevel(name){
-    levelLoader.open("GET", `http://localhost:8080/maps/${name}`); //REPLACE THIS WITH GITHUB URL ON RELEASE
+    levelLoader.open("GET", `http://azertite055.github.io/maps/${name}`); //hardcoded url lol
     levelLoader.responseType = "blob";
     levelLoader.send();
 } //in the release version this will run at startup
 levelLoader.onloadend = (e) => {
     importLevel(levelLoader.response, level);
 };
-/* load main levels -- uncomment in final
+/* load main levels -- uncomment in final (IF I HAD ANY)
 for (let i = 0; i < 5; i++){
     loadLevel(`map${i}`);
     mainLevels.push(structuredClone(level));
