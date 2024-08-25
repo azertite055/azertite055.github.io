@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>FGH extension</title>
+<style>
+body {
+	background-color: white;
+	font-family: courier;
+	font-size: 16px;
+}
+table {
+	text-align: left;
+	border: 1px solid black;
+	border-spacing: 1px;
+}
+td {
+	border: 1px solid black;
+}
+.centered {
+	text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="centered">-=- Collapsing-like FGH calculator -=-</div>
+<div>Entry format is af_b^c(d) -> [a,b,c,d] ,will automatically convert all numbers to their corresponding strings, reduce will work in paralell when possible</div>
+<div>implements regularization along with limit rule</div>
+<input type="text" id="input" name="input" size="64">
+<button onclick="invalue = informat(JSON.parse(input.value)); invalue=r(invalue); input.value = JSON.stringify(formatting.checked ? outformat(invalue) : invalue)">reduce</button>
+<div>Format to numbers in output display<input type="checkbox" id="formatting" name="formatting" checked> </div>
+<script src="fghx.js"></script>
+</body>
+</html>
