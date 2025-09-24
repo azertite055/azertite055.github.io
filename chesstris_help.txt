@@ -1,0 +1,25 @@
+Hi!
+This is the help text for Chesstris.
+
+- Gameplay - 
+All the pieces move as you would expect, pawns always move upwards.
+The blue 'neutral' pieces can be controlled by both players, they can capture and be captued by both players and other neutral pieces, and can check both kings.
+Spawning multiple kings is unsupported, and will lead to strange behavior.
+Neutral kings are semi-supported, they move like any other king and cannot be captured directly, but they have no special gameplay behavior otherwise.
+When a line is cleared, all pieces on the cleared tiles are also eraased. Kings can be exempted from this witha relevant game setting.
+The speed values are in units of tiles per second. If speed is set to 0 (or less), picees will only move in response to keyboard input ("strategy mode")
+If you have no moves but your king isn't under attack, play will resume with the other player dropping a block.
+
+- How to lose? -
+Checkmate: If you get into a position where your king has no safe place to move to, you lose.
+Line clear: If a line clear destroys your king, you lose. This can cause a tie if both kings are destroyed at the same time.
+Overflow: If you place a block above the top of the board, you lose.
+
+- Settings -
+The settigs are used for setting  the game's behavior.
+In the preset menu, you can save/load setting profiles. 
+
+- Online - 
+A from of online play is available, through sharing codes. A sperate medium of communication with your opponent is required (to send codes). There is no matchmaking of any sort, just direct connections.
+When hosting an online game, you can choose the rule from your saved presets, and it will be temporarily shared with your opponent; it will not be saved into their presets.
+An online game can only start once all options are chosen. Once both players are ready, the game will start in a few seconds, this can still be cancelled if one of the players changes their ready state.
