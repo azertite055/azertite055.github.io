@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8" />
+<meta name="description" content="Two-player web game that combines the mechanics of chess and Tetris, with many customization options available. Includes options for both local and online play! Wow!" />
 <title>Chesstris</title>
 <style>
 body {
 	background-color: white;
 	font-family: courier;
 	font-size: 16px;
+	overflow: hidden;
 }
 table {
 	text-align: left;
@@ -55,7 +58,16 @@ td {
 	border: none;
 	margin: 0px;
 	font-size: 22px;
+}
+#animtile {
+	position: absolute;
+	z-index: 2999;
+	font-size: 22px;
 	padding: 0px;
+	height: 32px;
+	width: 32px;
+	text-align: center;
+	overflow: hidden;
 }
 .square.tile.moves{
 	background-color: #5ED68A;
@@ -69,60 +81,283 @@ td {
 .ch.tile.current{
 	background-color: #6D75E0;
 }
+.clickable:hover {
+	cursor: pointer;
+	text-decoration: underline;
+	text-shadow: 0px 0px 4px black;
+}
+.piece0 {
+	color: black;
+	text-shadow: 1px 1px 0 white, -1px 1px 0 white, 1px -1px 0 white, -1px -1px 0 white;
+}
+.piece1 {
+	color: white;
+	text-shadow: 1px 1px 0 black, -1px 1px 0 black, 1px -1px 0 black, -1px -1px 0 black;
+}
+.piece2 {
+	color: blue;
+	text-shadow: 1px 1px 0 cyan, -1px 1px 0 cyan, 1px -1px 0 cyan, -1px -1px 0 cyan;
+}
+#shapeeditor {
+	position: absolute;
+	z-index: 1000;
+	display: none;
+	width: fit-content;
+	height: fit-content;
+	outline: 2px solid black;
+	padding: 4px;
+	text-align: center;
+	background-color: white;
+}
+canvas {
+	outline: 1px solid black;
+}
+#settingsmenu {
+	overflow: scroll;
+	max-height: 75vh;
+}
+#popups {
+	position: absolute;
+	display: flex;
+	align-items: center;
+  	justify-content: center;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 2000;
+}
+#popups > div{
+	display: none; /*overridden in code*/
+	width: fit-content;
+	height: fit-content;
+	padding: 2px;
+	border: 3px solid black;
+	box-shadow: 4px 4px 10px black;
+	background-color: white;
+	pointer-events: all;
+}
+#promotionmenu {
+	z-index: 1639;
+	background-color: white;
+	position: absolute;
+	top: -40px;
+	width: fit-content;
+	height: fit-content;
+	padding: 2px;
+	border: 3px solid black;
+}
 </style>
 </head>
 <body>
+<div id="popups">
+	<div id="presets">
+		<div class="centered">- Presets -</div>
+		<table id="presettable"></table>
+		<div>
+			<span class="clickable" onclick="settings.name = window.prompt('Enter the preset\'s name'); savedSettings.push(structuredClone(settings)); drawPresetTable()">[Save current]</span>
+			<span class="clickable" onclick="tempSettings=JSON.parse(window.prompt('Enter import string')); savedSettings.push(structuredClone(tempSettings)); drawPresetTable()">[Import]</span>
+			<span class="clickable" onclick="savedSettings.push(structuredClone(defaultSettings)); drawPresetTable()">[Restore default]</span>
+		</div>
+		<div><span class="clickable" onclick="closeWindow();">[Close]</span></div>
+	</div>
+	<div id="onlinemenu">
+		<div class="centered">- Online setup -</div>
+		<div id="lastgameresult" style="display: none;">
+			<span id="resulttext"></span>
+			<br>
+		</div>
+		<div id="hostline">Your ID is <span id="gamecode" style="text-decoration: underline;" onclick="navigator.clipboard.writeText(myId)"></span> (click to copy). Send this code to your opponent.<br></div>
+		<div id="bruhline" style="display: none;">If you see this, you are probably trying to join a game that is already running.<br>In any case, you should probably <span class="clickable" onclick="disconnectBtnFn();">[disconnect]</span>.</div>
+		<div id="fullonline" style="display: none;">
+			<div>Connected to <span id="windowothername"></span> | <span class="clickable" onclick="disconnectBtnFn()">Disconnect</span></div>
+			<div id="hostsettings" style="display: none;">
+				Select rule: <select id="hostruleselector"></select>
+				Starting player: <select id="hoststartingselector" onchange="	
+																				choicesMade[0] = hoststartingselector.value != '';
+																				if (hoststartingselector.value != ''){
+																					assignedPlayer = hoststartingselector.value == 2 ? fromDist([1,1]) : Number(hoststartingselector.value);
+																				}
+																				myConnection.send({type: 'starting', data: [hoststartingselector.value, 1-assignedPlayer]});
+																				checkReadiness();">
+					<option value="">(select)</option>
+					<option value="0">Host</option>
+					<option value="1">Other</option>
+					<option value="2">Random</option>
+				</select>
+			</div>
+			<div id="joinerline" style="display: none;">
+				Host is selecting rule: <span id="joinerrule"></span> | 
+				<span id="joinerstarting"></span><br>
+				Save host's rule to my presets (happens when the game is started, for ~~reasons~~)<input type="checkbox" name="joinersavehostrule" id="joinersavehostrule">
+			</div>
+			<div>
+				<span  id="meready" class="clickable" 	onclick="iAmReady = !iAmReady; 
+														document.getElementById('meready').textContent = iAmReady ? 'I\'m ready' : 'I\'m not ready';
+														myConnection.send({type:'ready', data:iAmReady});
+														checkReadiness();">
+														I'm not ready</span>
+				(click to change) | Opponent is <span id="otherready">not ready</span> 
+			</div>
+			<div id="readyline" class="centered" style="display: none;">Starting in <span id="readytime" sytle=" background-color: white;">3.00</span></div>
+		</div>
+	</div>
+</div>
+
 <div class="centered">-=- Chesstris -=-<br>
-Use arrows+space for tetris, and the mouse for chess. 
-<noscript style="color: red;">Enable Javascript to play the game.</noscript><br>
-<br><br></div>
+Use arrows+space for tetris, and the mouse for chess.
+</div>
+<noscript style="color: red;">Enable Javascript to play the game.</noscript>
+<br>
+<div class="centered">
+	Username: <span id="myusername" class="clickable" onclick="let a = window.prompt('Enter new username'); account.username = a || account.username; document.getElementById('myusername').textContent = account.username"></span>
+			<span id="onlineuserdisplay" style="display: none;">|| Opponent: <span id="otherusername"></span></span>
+</div>
+<br>
 <table class="ma">
 	<tr>
 		<td id="game">
-			<div id="board">
-				If you see this, the board failed to load. I'm sorry.
+			<div id="board" style="position: relative;">
+				Loading... hopefully.
 			</div>
-			<div id="settingsmenu" style="display: none;">
-				<div>Board width: <input type="number" id="bwidth" placeholder="10" min="4" value="10"></input></div>
-				<div>Board height: <input type="number" id="bheight" placeholder="14" min="4" value="14"></input></div>
-				<div onclick="closeSettings(true)">[ Save settings ]</div>
-				<div onclick="closeSettings(false)">[ Cancel ]</div>
+			<div id="settingsmenu" style="display: none; position: relative;">
+				<div id="shapeeditor">
+					<span class="clickable" onclick="addShapeSize()">+size</span> | 
+					<span class="clickable" onclick="subShapeSize()">-size</span> | 
+					<span class="clickable" onclick="saveShape()">done</span><br>
+					<table id="shapetable"></table>
+				</div>
+				<div>Board width: <input type="number" id="bwidth" placeholder="10" min="4" value="10" size="4" onchange="settings.width=Number(bwidth.value)"></input> | 
+				Board height: <input type="number" id="bheight" placeholder="14" min="4" value="14" size="4" onchange="settings.height=Number(bheight.value)"></input></div>
+				<div class="centered">- Piece distribution -</div>
+				Empty: <input type="number" id="distempty" name="distempty" min="0" value="300" onchange="settings.pieceDistribution[0] = Number(distempty.value)">
+				<div>Yours / Opponent's / Neutral</div>
+				<table id="piecedistmenu"></table>
+
+				<div class="centered">- Shape distribution -</div>
+				<div id="shapedistmenu"></div>
+				<div>
+					<span class="clickable" onclick="settings.blockTypes.push([[1]]); settings.blockDistribution.push(0); makeShapeMenu();">Add</span> | 
+					<span class="clickable" onclick="settings.blockTypes.pop(); settings.blockDistribution.pop(); makeShapeMenu();">Remove</span>
+				</div>
+
+				<div>Piece balancing 
+					<select id="fgenmode" name="fgenmode" onchange="settings.generationType = Number(fgenmode.value)">
+						<option value="0">Shape and piece mirroring</option>
+						<option value="1">Piece mirroring</option>
+						<option value="2">No balancing</option>
+					</select>
+				</div>
+				Base speed <input type="number" id="fbasespeed" name="fbasespeed" min="0" value="1" size="4" onchange="settings.baseSpeed = Number(fbasespeed.value)"> | 
+				Acceleration <input type="number" id="facceleration" name="facceleration" min="0" value="0" size="4" onchange="settings.acceleration = Number(facceleration.value)"> |  
+				Max speed <input type="number" id="fmaxspeed" name="fmaxspeed" min="0" value="0" size="4" onchange="settings.maxSpeed = Number(fmaxspeed.value)">
+				<br>
+				<div>Show next piece
+					<select id="fprevmode" name="fprevmode" onchange="settings.previewType = Number(fprevmode.value)">
+						<option value="0">don't</option>
+						<option value="1">for current player</option>
+						<option value="2">for both players</option>
+					</select>
+				</div>
+				<div>
+					Kings immune to line clear <input type="checkbox" id="fkingsunclearable" name="fkingsunclearable" onchange="settings.kingsUnclearable = fkingsunclearable.checked"/><br>
+					Pawns promote on top row <input type="checkbox" id="fcanpromote" name="fcanpromote" onchange="settings.canPromote = fcanpromote.checked"/>
+				</div>
+				<div>
+					<span class="clickable" onclick="showWindow('presets')">[Show presets]</span>
+				</div>
+				
+				<div class="clickable" onclick="closeSettings()">[Exit settings]</div>
 			</div>
 		</td>
+		<td id="prevs">
+			<div class="centered">- Next -</div>
+			<br>
+			<span id="prevsboth" style="display: none;">
+				<div>Black:</div>
+				<table id="blacknext"></table>
+				<br>
+				<div>White:</div>
+				<table id="whitenext"></table>
+			</span>
+			<span id="prevsone" style="display: none;">
+				<table id="onenext"></table>
+			</span>
+		</td>
 		<td id="stat">
-			<div onclick="runGame()">[start game]</div>
-			<div onclick="openSettings()">[settings]</div>
-			<div onclick="resetGame()">[reset]</div>
-			<div>next blocks:</div>
-			<div>add later</div>
-			<div>turn: <span id="whoseturn">black</span></div>
-			<div>fallrate: <span id="fallrate">1000</span>ms</div>
-			<div onclick="deselect()">[deselect]</div>
+			<div class="clickable" onclick="resetGame(); runGame()">[Start local game]</div>
+			<br>
+			<div class="clickable" onclick="startOnlineGame()">[Create online game]</div>
+			<div class="clickable" onclick="joinOnlineGame()">[Join online game]</div>
+			<br>
+			<div class="clickable" onclick="if (onlineMode) {disconnectBtnFn();} else {resetGame();}">[<span id="resetbtntext">Reset</span>]</div>
+			<br>
+			<div id="dcurrentplayer"><span id="whoseturn">Black</span>'s turn</div>
+			<div id="dassignedplayer" style="display: none">Playing as <span id="asspltext">Black</span></div>
+			<div>Turns: <span id="nturns">0</span></div>
+			<div>Fallrate: <span id="fallrate">1000</span>ms</div>
+			<div>Lines: <span id="nlines">0</span></div>
+			<br>
+			<div class="clickable" onclick="openSettings()">[Settings]</div>
+			<br>
+			<div class="clickable" onclick="window.open('chesstris_help.txt')">[Open help]</div>
 		</td>
 	</tr>
 </table>
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script> <!--shoutouts to peerjs yo-->
 <script>
-var pieces = [["♔","♕","♖","♗","♘","♙"], ["♚","♛","♜","♝","♞","♟"]];
-function b(d, x, y){
-	var a = [];
-	var p = -1;
-	for (let i = 0; i < x*y; i++){
-		if(i % x == 0){a.push([]); p+=1;}
-		a[p].push(d%2);
-		d >>= 1; //once in a millennium right shift assignment usage
-	}
-	return a; //this was SO unnecessary but its funny
+//utility / vare
+
+function safeIndex(a, i, def){
+	return i < a.length ? a[i] : def;
 }
-var blocks = [
-	b(15, 2, 2), //O
-	b(58, 3, 3), //T
-	b(57, 3, 3), //R
-	b(60, 3, 3), //L
-	b(30, 3, 3), //S
-	b(51, 3, 3), //Z
-	b(8738, 4, 4)  //I
-]; //it would have taken less time and space to type this out manually...
+function escapeHtml(unsafe) { //copied from stackoverflow because i don't care (why did i think i would need this again? is this even used anywhere?)
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+function removeNthElement(a, n){
+    return a.slice(0, n).concat(a.slice(n+1, a.length)); //i should move these into a utility file at some point
+}
+
+function fillDefaults(o, template){
+	//use the function to fill in missing keys with some Extra given by the template
+	for (let k of Object.keys(template)){
+		if (!Object.keys(o).includes(k)){
+			o[k] = template[k];
+		}
+	}
+	return o; //i actually don't know if this updates the object be itself or if i have to use the return value but I don't care because im literally a goodess and i remain unbothered 
+}
+
+function makeBitmap(target, data, scale){
+	var d = document.getElementById(target)
+	var c = d.getContext("2d");
+	d.width = 2+scale*data.length; //effective 1 pixel padding
+	d.height = 2+scale*data.length;
+	c.fillStyle = "black"
+	for (i = 0; i < data.length; i++){
+		for (j = 0; j < data.length; j++){
+			if (data[i][j]){
+				c.fillRect(1+j*scale, 1+i*scale, scale, scale);
+			}
+		}
+	}
+}
+var pieces = ["♚","♛","♜","♝","♞","♟"];
+var pieceInfo = {
+	promotionOption: [false, true, true, true, true, false]
+};
+var promotionData = {
+	loc: [-1, -1],
+	color: -1
+}
 function rot(b){
+	if (b.length == 0){
+		return b;
+	}
 	var a = [];
 	var p = -1;
 	for (let i = 0; i < b.length * b[0].length; i++){
@@ -131,29 +366,50 @@ function rot(b){
 	}
 	return a;
 }
+
 var settings = {
+	name: "Default",
 	width: 10,
 	height: 14,
-	pieceDistribution: distFromOdds([300, 0, 3, 15, 15, 15, 30, 0, 1, 5, 5, 5, 10]), //empty, yours (6), opponent's (6) (implicit zero at -1, cumulative!)
+	pieceDistribution: [300, [0, 3, 15, 15, 15, 30], [0, 1, 5, 5, 5, 10], [0, 0, 0, 0, 0, 0]], //empty, yours (6), opponent's (6), neutral (6)
+	blockDistribution: [1,1,1,1,1,1,1],
+	blockTypes: [
+		[[1,1],[1,1]], //O
+		[[0,0,0],[1,1,1],[0,1,0]], //T
+		[[0,1,1],[0,1,0],[0,1,0]], //R
+		[[1,1,0],[0,1,0],[0,1,0]], //L
+		[[0,1,1],[1,1,0],[0,0,0]], //S chiral
+		[[1,1,0],[0,1,1],[0,0,0]],
+		[[0,1,0,0],[0,1,0,0],[0,1,0,0],[0,1,0,0]] //I
+	],
 	initialLineup: [
-		[0, 0, 0],
-		[0, 1, 0],
-		[0, 0, 0],
-	]
+		[[true,-1,-1,0], [true,-1,-1,0], [true,-1,-1,0]],
+		[[true,-1,-1,0], [true, 0, 0,0], [true,-1,-1,0]],
+		[[true,-1,-1,0], [true,-1,-1,0], [true,-1,-1,0]],
+	],
+	baseSpeed: 1,
+	acceleration: 0,
+	maxSpeed: 10,
+	generationType: 0, //0->shape/piece mirroring, 1->piece mirroring, 2->no balancing
+	previewType: 2, //0 neither 1 yours 2 both
+	kingsUnclearable: true,
+	canPromote: true,
 };
-function distFromOdds(oddsList){ //13 elements
-	for (let i = 1; i < 13; i++){
-		oddsList[i] += oddsList[i-1];
-	}
-	return oddsList;
+var savedSettings = [structuredClone(settings)];
+var defaultSettings = structuredClone(settings);
+var account = {
+	username: "",
 }
 function resetGame(){
+	closeSettings();
 	generateBoard();
+	gameRunning = false;
 	currentBlock = [];
 	blockCache = [generateBlock(), generateBlock(), generateBlock(), generateBlock()];
-	blockCache[1] = otherPlayerify(blockCache[0]);
-	blockCache[3] = otherPlayerify(blockCache[2]);
-	currentPlayer = -1;
+	blockCache[1] = generateOtherBlock(blockCache[0]);
+	blockCache[3] = generateOtherBlock(blockCache[2]);
+	remainingBalancingPieces = []
+	currentPlayer = 0;
 	currentPhase = 1;
 	isBlockFalling = false;
 	hasSelected = false;
@@ -162,76 +418,650 @@ function resetGame(){
 	fallrate = 1000;
 	isLineFull = false;
 	aqkdjhsiou = true;
+	linesCleared = 0;
+	totalTurns = 0;
+	firstPass = true;
+	//setup previwer mode,
+	document.getElementById("prevsboth").style.display = "none";
+	document.getElementById("prevsone").style.display = "none";
+	switch (settings.previewType){
+		case 1:
+			document.getElementById("prevsone").style.display = "inline";
+			initPreviewTable("one");
+			break;
+		case 2:
+			document.getElementById("prevsboth").style.display = "inline";
+			initPreviewTable("black");
+			initPreviewTable("white");
+			break;
+		default:
+			break; //
+	}
 	clearTimeout(looper);
+}
+function initPreviewTable(which){ //black/white/one + next
+	document.getElementById(`${which}next`).innerHTML = "";
+	var a = Math.max(...settings.blockTypes.map(x => x.length)); //all preview boxes are the size of the largest shape to make sure stuff doesnt shift around
+	for (let i = 0; i < a; i++){
+		var u = document.createElement("tr");
+		document.getElementById(`${which}next`).appendChild(u);
+		for (let j = 0; j < a; j++){
+			var v = document.createElement("td");
+			u.appendChild(v);
+			v.id = `${which}${i}x${j}`;
+			v.classList.add("square");
+		}
+	}
 }
 function openSettings(){
 	document.getElementById("board").style.display = "none";
 	document.getElementById("settingsmenu").style.display = "block";
+	//initilize 
+	bwidth.value = settings.width;
+	bheight.value = settings.height;
+	distempty.value = settings.pieceDistribution[0];
+	fbasespeed.value = settings.baseSpeed;
+	facceleration.value = settings.acceleration;
+	fmaxspeed.value = settings.maxSpeed;
+	fgenmode.value = settings.generationType;
+	fprevmode.value = settings.previewType;
+	fcanpromote.checked = settings.canPromote;
+	fkingsunclearable.checked = settings.kingsUnclearable;
+	makeShapeMenu();
+	makeDistMenu();
 }
-function closeSettings(save){
+function closeSettings(){
 	document.getElementById("board").style.display = "block";
 	document.getElementById("settingsmenu").style.display = "none";
-	if (save){
-		settings.width = Number(bwidth.value);
-		settings.height = Number(bheight.value);
+}
+
+//Build  setting HTML.
+function makeDistMenu(){
+	var tl = document.getElementById("piecedistmenu");
+	tl.innerHTML="";
+	for (i = 0; i < 6; i++){
+		var r = document.createElement("tr");
+		tl.appendChild(r);
+		for (j = 0; j < 3; j++){
+			var d = document.createElement("td");
+			r.appendChild(d);
+			d.innerHTML = `<span class="tile piece${j}">${pieces[i]}</span><br>
+			<input type="number" id="pdist${j}x${i}" name="pdist${j}x${i}" min="0" value="${settings.pieceDistribution[j+1][i]}"
+			onchange="settings.pieceDistribution[${j+1}][${i}]=Number(pdist${j}x${i}.value)" size="4">`
+		}
 	}
 }
-var boardMap = [];
+
+function makeShapeMenu(){
+	var t = document.getElementById("shapedistmenu");
+	t.innerHTML = ""; //wipe clean
+	for (let i = 0; i < settings.blockTypes.length; i++){
+		var s = document.createElement("span");
+		t.appendChild(s);
+		s.innerHTML = `<canvas id="shapebitmap${i}"></canvas>
+		<span class="clickable" onclick="invokeShapeEditor(${i})">[set shape]</span>
+		<input type="number" id="sdist${i}" name="sdist${i}" min="0" value="${settings.blockDistribution[i]}"
+		onchange=settings.blockDistribution[${i}]=Number(sdist${i}.value) size="4">`;
+		t.appendChild(document.createElement("br"));
+		makeBitmap(`shapebitmap${i}`, settings.blockTypes[i], 6);
+	}
+}
+var tempShape = [];
+var editedShape = 0;
+function invokeShapeEditor(loc){
+	editedShape = loc;
+	var se = document.getElementById("shapeeditor");
+	var c = document.getElementById(`shapebitmap${loc}`); //odd but not really too relevant
+	se.style.display = "block";
+	se.style.top = `${c.offsetTop}px`;
+	se.style.left = "40px";
+	tempShape = settings.blockTypes[loc];
+	//load in a table.
+	document.getElementById("shapetable").innerHTML = ""; //clear.
+	for (let i = 0; i < tempShape.length; i++){
+		var x = document.createElement("tr");
+		document.getElementById("shapetable").appendChild(x);
+		for (let j = 0; j < tempShape.length; j++){
+			var y = document.createElement("td");
+			y.id = `stoggle${i}x${j}`;
+			x.appendChild(y);
+			y.width = 20;
+			y.height = 20;
+			y.textContent = "\xa0"
+			y.onclick = new Function(`shapeToggleFn(${i}, ${j})`);
+			y.style.backgroundColor = tempShape[i][j] ? "black" : "white";
+		}
+	}
+}
+function addShapeSize(){
+	for (let i = 0; i < tempShape.length; i++){
+		tempShape[i].push(0);
+	}
+	tempShape.push(Array(tempShape[0].length).fill(0));
+	invokeShapeEditor(editedShape); //redraw table using existing machinery
+}
+function subShapeSize(){
+	if (tempShape.length == 1){ return;}
+	for (let i = 0; i < tempShape.length; i++){
+		tempShape[i].pop();
+	}
+	tempShape.pop();
+	invokeShapeEditor(editedShape);
+}
+function saveShape(){
+	if (tempShape.flat().reduce((a, b) => a + b, 0) == 0){ //if the shape is all empty space
+		alert("Empty shapes are not allowed");
+		return;
+	}
+	settings.blockTypes[editedShape] = tempShape;
+	document.getElementById("shapeeditor").style.display = "none";
+	makeShapeMenu();
+}
+function shapeToggleFn(i, j){
+	tempShape[i][j] = 1 - tempShape[i][j];
+	document.getElementById(`stoggle${i}x${j}`).style.backgroundColor = tempShape[i][j] ? "black" : "white";
+}
+var windows = ["presets", "onlinemenu"];
+function showWindow(name){
+	for (let i of windows){
+		document.getElementById(i).style.display = "none";
+	}
+	document.getElementById(name).style.display = "block";
+	//specifics.
+	switch (name){
+		case "presets":
+			drawPresetTable();
+		break;
+	}
+}
+
+const moveAnimationLength = 80;
+var moveAnimationProperties = {
+	activate: false,
+	startLoc: [-1, -1],
+	endLoc: [-1, -1],
+	startValue: [],
+	endValue: [],
+	startTime: -1,
+	running: false,
+}
+function moveAnimationFn(time){
+	if (moveAnimationProperties.activate){
+		moveAnimationProperties.startTime = time;
+		document.getElementById("animtile").textContent = pieces[moveAnimationProperties.startValue[2]];
+		document.getElementById("animtile").classList.remove("piece0", "piece1", "piece2");
+		document.getElementById("animtile").classList.add(`piece${moveAnimationProperties.startValue[1]}`);
+		document.getElementById("animtile").style.display = "block";
+		moveAnimationProperties.activate = false;
+		moveAnimationProperties.running = true;
+	}
+	const startElement = document.getElementById(`b${moveAnimationProperties.startLoc[0]}x${moveAnimationProperties.startLoc[1]}`);
+	const endElement = document.getElementById(`b${moveAnimationProperties.endLoc[0]}x${moveAnimationProperties.endLoc[1]}`);
+	var progressValue = (time - moveAnimationProperties.startTime) / moveAnimationLength;
+	if (progressValue < 1){
+		//the animation is running
+		document.getElementById("animtile").style.top = `${startElement.offsetTop * (1-progressValue) + endElement.offsetTop * (progressValue)}px`;
+		document.getElementById("animtile").style.left = `${startElement.offsetLeft * (1-progressValue) + endElement.offsetLeft * (progressValue)}px`;
+		render(); //wasteful...
+		requestAnimationFrame(moveAnimationFn);
+	}
+	else {
+		//animation ends
+		moveAnimationProperties.running = false;
+		document.getElementById("animtile").style.display = "none";
+		render();
+	}
+
+}
+
+function closeWindow(){
+	for (let i of windows){
+		document.getElementById(i).style.display = "none";
+	}
+}
+function drawPresetTable(){
+	var c = 0;
+	document.getElementById("presettable").innerHTML = "";
+	for (let i of savedSettings) {
+		var r = document.createElement("tr");
+		document.getElementById("presettable").appendChild(r);
+		var s = document.createElement("td");
+		r.appendChild(s);
+		s.innerHTML = `${i.name}: 
+								<span class="clickable" onclick="var a = savedSettings[${c}].name; savedSettings[${c}]=structuredClone(settings); savedSettings[${c}].name = a; drawPresetTable(); openSettings();">[Save]</span>
+								<span class="clickable" onclick="settings=structuredClone(savedSettings[${c}]); drawPresetTable(); openSettings();">[Load]</span> 
+								<span class="clickable" onclick="savedSettings[${c}].name=window.prompt(\`Enter the preset's new name\`); drawPresetTable()">[Rename]</span> 
+								<span class="clickable" onclick="navigator.clipboard.writeText(JSON.stringify(savedSettings[${c}]))"; drawPresetTable()">[Export]</span> 
+								<span class="clickable" onclick="savedSettings = removeNthElement(savedSettings, ${c}); drawPresetTable()">[Remove]</span>
+		`;
+		c++;
+	}
+}
+
+//Create promotioj option tabel.
+function createPromotionOptions(){
+	var tempString = " | ";
+	for (let i = 0; i < pieces.length; i++){
+		if (pieceInfo.promotionOption[i]){
+			tempString += `<span class="clickable" onclick="selectPrmotion(${i})">${pieces[i]}</span> | `;
+		}
+	}
+	return tempString;
+}
+
+var boardMap = []; //0->has tile (bool), 1->piece color (-1 nonexist 0 black 1 white), 2->piece type (-1 nonexist rest in list), 3->additional flags
 var currentTarget = [0, 0];
 function generateBoard(){
-	var boardString = "<table>";
-	var uboardMap = [];
+	boardMap = [];
+	var boardString = "<table style='outline: 1px solid black'>";
+	boardString += `<div id="animtile" style="display: none;"></div>
+		<div id="promotionmenu" style="display: none;">
+			<div>Select promotion:</div>
+			<div id="promotionoptions">${createPromotionOptions()}</div></div>`;
 	for (let i = 0; i < settings.height; i++){
-		uboardMap.push([]);
 		boardString += "</tr>";
+		boardMap.push([]);
 		for (let j = 0; j < settings.width; j++){
-			boardString += `<td id="b${i}x${j}" class="square ${(i+j)%2 == 0 ? "ch" : ""}" onclick="handleChess(${i},${j})"></td>`;
-			uboardMap[i].push(-1);
+			boardString += `<td id="b${i}x${j}" class="square ${(i+j)%2 == 0 ? "ch" : ""}" onclick="handleChess(${i},${j})">
+				</td>`;
+			boardMap[i].push([false, -1, -1, 0]);
 		}
 		boardString += "</tr>";
 	}
 	boardString += "</table>";
 	document.getElementById("board").innerHTML = boardString;
-	boardMap = uboardMap;
 	//populate with initial state
 	for (let i = 0; i < settings.initialLineup.length; i++){
-		for (let j = 0; j < settings.initialLineup[0].length; j++){
+		for (let j = 0; j < settings.initialLineup[0].length; j++){ //shit's still fucked
 			boardMap[settings.height + i - settings.initialLineup.length][j] = settings.initialLineup[i][j];
-			boardMap[settings.height + i - settings.initialLineup.length][settings.width - j - 1] = settings.initialLineup[i][j] == 0 ? 0 : (settings.initialLineup[i][j] + (settings.initialLineup[i][j] > 6 ? -6 : 6));
+			boardMap[settings.height + i - settings.initialLineup.length][settings.width - j - 1] = otherPlayerify(settings.initialLineup)[i][j]; //new ass function so new it has no documentatoij
+		}
+	}
+}
+function generateTile(){
+	var dist1 = settings.pieceDistribution.map((x,i) => {
+		if (i == 0) {return x}
+		return x.reduce((p,q) => Number(p)+Number(q), 0);
+	});
+	var i1 = fromDist(dist1);
+	var i2 = i1 == 0 ? -1 : fromDist(settings.pieceDistribution[i1]);
+	return [true, i1-1, i2, 0];
+}
+function fromDist(a){
+	//returns a random index in a number array weighted by the numbers in the array
+	if (typeof a === "number") {return 0}
+	var r = Math.random() * a.reduce((p,q) => p+q);
+	var i = 0;
+	var s = 0;
+	while (i < a.length){
+		if (s > r){break;}
+		s += a[i];
+		i++;
+	}
+	return i-1 //0-index
+}
+function setTile(pos, data, over){
+	for (let i = 0; i < over.length; i++){
+		if (over[i]){
+			boardMap[pos[0]][pos[1]][i] = data[i];
 		}
 	}
 }
 function generateBlock(){
-	var e = structuredClone(blocks[Math.floor(Math.random()*7)]);
+	var e = structuredClone(settings.blockTypes[fromDist(settings.blockDistribution)]);
 	for (let i = 0; i < e.length; i++){
 		for (let j = 0; j < e[0].length; j++){
 			if (e[i][j] == 1){ //populate with pieces
-				var r = settings.pieceDistribution[12] * Math.random();
-				e[i][j] = settings.pieceDistribution.findIndex((x) => x > r); //does this work now? i kinda forgot
+				e[i][j] = generateTile(); //does this work now? i kinda forgot
 			}
 			else {
-				e[i][j] = -1;
+				e[i][j] = [false, -1, -1, 0];
 			}
 		}
 	}
 	return e;
 }
+function generateOtherBlock(last){ //for the second player (white) we generate the block based on the last one
+	switch (settings.generationType){
+		case 0:
+			return otherPlayerify(last);
+		break;
+		case 1:
+			//collect pieces
+			for (let i of last.flat(1)){
+				if (i[0] && i[1] >= 0){
+					remainingBalancingPieces.push(i.with(1, 1-i[1]));
+				}
+			}
+
+			//get a new shape
+			var e = structuredClone(settings.blockTypes[fromDist(settings.blockDistribution)]);
+			
+			var locs = [];
+			for (let i = 0; i < e.length; i++){
+				for (let j = 0; j < e.length; j++){
+					if (e[i][j]){
+						locs.push([i, j]);
+					}
+				}
+			}
+			e = e.map(x => x.map(y => [!!y, -1, -1, 0]));
+			while (locs.length > 0 && remainingBalancingPieces.length > 0){
+				var a = fromDist(Array(locs.length).fill(1)); //unifrom choice (odd but it uses existing code so its fine actually)
+				var b = fromDist(Array(remainingBalancingPieces.length).fill(1));
+				var selectedLoc = locs[a];
+				var selectedPiece = remainingBalancingPieces[b];
+				e[selectedLoc[0]][selectedLoc[1]] = selectedPiece;
+				locs = removeNthElement(locs, a);
+				remainingBalancingPieces = removeNthElement(remainingBalancingPieces, b);
+			}
+			return e;
+		break;
+		case 2:
+			return generateBlock();
+		break;
+		default:
+			console.log("fuckhead");
+		break;
+	}
+
+}
 function otherPlayerify(q){
 	var r = structuredClone(q); //i have no idea why this is necessary. i don't know anything about javascript. i feel like i am awakening ancient demons with every statement. i am scared. please help me.
 	for (let i = 0; i < q.length; i++){
 		for (let j = 0; j < q[0].length; j++){
-			if (q[i][j] > 0){
-				r[i][j] += q[i][j] > 6 ? -6 : 6;
+			if (q[i][j][0] && q[i][j][1] >= 0 && r[i][j][1] <= 1){
+				r[i][j][1] = 1-r[i][j][1]; //x=>1-x flips 0 and 1
 			}
 		}
 	}
 	return r;
 }
+
+//ONLINE. 
+var onlineMode = false;
+var isHost = false;
+var isConnected = false;
+var tempSettings = {}; //settings are held here while online play is in progress, so that they can be restored
+var assignedPlayer = 0;
+var myConnection = undefined;
+var myPeer = new Peer();
+var iAmReady = false;
+var opponentIsReady = false;
+var myId = "";
+var choicesMade = [false, false]; //0 player selection mode 1 rule
+var readyTimer = 3000;
+var rotCounter = 0; //for Syncing piece rotation
+var otherAccount = {};
+var tempBlockCache = []; //needed for the host to keep up
+var initiatedDisconnect = false;
+myPeer.on('open', function(id) {
+		document.getElementById("gamecode").textContent = id;
+		myId = id; //is this... safe? or necessary?
+});
+myPeer.on("connection", function(c) {
+	//happends on host
+	if (isConnected){
+		c.close();
+		return;
+	}
+	myConnection = c;
+	myConnection.on("data", processMessage);
+	myConnection.on("close", connectionEndFn); 
+	document.getElementById("hostline").style.display = "none";
+	document.getElementById("fullonline").style.display = "block";
+	document.getElementById("hostsettings").style.display = "block";
+	document.getElementById("onlineuserdisplay").style.display = "inline";
+	document.getElementById("hostruleselector").innerHTML = "";
+	for (let i = -1; i < savedSettings.length; i++){
+		let o = document.createElement("option");
+		document.getElementById("hostruleselector").appendChild(o);
+		if (i == -1){
+			o.value = "";
+			o.textContent = "(select)";
+			o.onclick = new Function(`choicesMade[1] = false; myConnection.send({type: "rule", data: false}); checkReadiness();`);
+		}
+		else {
+			o.value = i;
+			o.textContent = savedSettings[i].name;
+			o.onclick = new Function(`choicesMade[1] = true; settings = structuredClone(savedSettings[${i}]); myConnection.send({type: "rule", data: savedSettings[${i}].name}); checkReadiness();`);
+		}
+	}
+});
+
+function startOnlineGame(){
+	if (isConnected){
+		return;
+	}
+	onlineMode = true;
+	isHost = true;
+	tempSettings = structuredClone(settings);
+	showWindow("onlinemenu");
+}
+function joinOnlineGame(){
+	if (isConnected){
+		alert("You are already in an online game, baka");
+		return;
+	}
+	onlineMode = true;
+	isHost = false;
+	tempSettings = structuredClone(settings);
+	showWindow("onlinemenu");
+	myConnection = myPeer.connect(window.prompt("Enter the game code pweeze :3"));
+	document.getElementById("bruhline").style.display = "block";
+	myConnection.on("data", processMessage); 
+	myConnection.on("close", connectionEndFn); 
+	myConnection.on("open", function(d){
+		//happens on other
+		document.getElementById("hostline").style.display = "none";
+		document.getElementById("bruhline").style.display = "none";
+		document.getElementById("fullonline").style.display = "block";
+		document.getElementById("joinerline").style.display = "block";
+		isConnected = true;
+		document.getElementById("onlineuserdisplay").style.display = "inline";
+		myConnection.send({type:"user", data: account, ord: true}); //sent to host
+	});
+}
+var joinerStartingMessages = ["Host goes first", "You go first", "Satrting player will be decided randomly"];
+function processMessage(m){
+	//console.log(m);
+	//m.type is a string, m.data.(...)
+	switch (m.type){
+		case "user": //other user data.
+			if (m.ord){ //if it's the host receiving
+				if (isConnected){
+					myConnection.send({type:"haveconn"});
+					return;
+				}
+				else {
+					myConnection.send({type:"user", data: account, ord: false}); //we send it here to make sure the connection exists when we do
+				}
+			}
+			isConnected = true;
+			otherAccount = m.data;
+			document.getElementById("otherusername").textContent = m.data.username;
+			document.getElementById("windowothername").textContent = m.data.username;
+		break;
+		case "haveconn": //sent to other if the host has a connection already
+			alert("This game is already running");
+			myConnection.close();
+			exitOnline();
+		break;
+		case "rule": //set rule during init
+			document.getElementById("joinerrule").textContent = m.data || ""; //we set the name
+			choicesMade[1] = m.data !== false;
+			checkReadiness();
+		break;
+		case "starting": //set staring player during init
+			assignedPlayer = m.data[1];
+			if (m.data[0] != ""){
+				document.getElementById("joinerstarting").textContent = joinerStartingMessages[Number(m.data[0])];
+			}
+			choicesMade[0] = m.data[0] != "";
+			checkReadiness();
+		break;
+		case "ready": //set ready state during init
+			opponentIsReady = m.data;
+			document.getElementById("otherready").textContent = opponentIsReady ? "ready" : "not ready";
+			checkReadiness();
+		break;
+		case "sendrule": //to other, sends rule to other
+			settings = m.data;
+			if (joinersavehostrule.checked){
+				savedSettings.push(structuredClone(m.data));
+			}
+			myConnection.send({type: "start", data: blockCache});
+			initOnlineGame();
+		break;
+		case "start": //to host, after other has received the rule we can start things here too
+			tempBlockCache = m.data;
+			initOnlineGame();
+		break;
+		case "offset": //set offset during fall
+			offset = m.data;
+			render();
+		break;
+		case "rot": //set rotation during fall
+			while (rotCounter < m.data){
+				currentBlock = rot(currentBlock);
+				rotCounter++;
+			}
+			render();
+		break;
+		case "tochess": //we go to chess, we only sync what's needed (also applies to next)
+			currentPhase = -1;
+			linesCleared = m.data.linesCleared;
+			boardMap = m.data.boardMap;
+			render();
+		break;
+		case "totetris": //we go to tetris, which also signifies a change of whose turn it is
+			currentPhase = 1;
+			boardMap = m.data.boardMap;
+			remainingBalancingPieces = m.data.remainingBalancingPieces;
+			currentPlayer = m.data.currentPlayer;
+			blockCache = m.data.blockCache;
+			totalTurns = m.data.totalTurns;
+			currentBlock = m.data.currentBlock;
+			offset = m.data.offset;
+			moveAnimationProperties = m.data.moveAnimationProperties;
+			requestAnimationFrame(moveAnimationFn);
+			runGame();
+		break;
+		case "gameend":
+			declareWinner(m.data.player, m.data.message, false);
+		break;
+		default:
+			console.error(`Unknown message received ${m}`);
+		break;
+	}
+}
+var timeInit;
+var timerId = -4;
+function checkReadiness(){
+	if (iAmReady && opponentIsReady && choicesMade[0] && choicesMade[1]) {
+		document.getElementById("readyline").style.display = "block";
+		timerId = requestAnimationFrame(timerAnim);
+
+	}
+	else if (timerId) {
+		cancelAnimationFrame(timerId);
+		readyTimer = 3000;
+		timeInit = undefined;
+		document.getElementById("readyline").style.display = "none";
+	}
+}
+function timerAnim(t){
+	if (timeInit === undefined){
+		timeInit = t;
+	}
+	readyTimer = 3000 - (t - timeInit);
+	document.getElementById("readytime").textContent = (readyTimer / 1000).toFixed(1);
+	document.getElementById("readyline").style.backgroundColor = `hsl(0 1 ${((t - timeInit)%1000) / 3})`;
+	timerId = requestAnimationFrame(timerAnim);
+	if (readyTimer <= 0){
+		//start game.
+		cancelAnimationFrame(timerId);
+		//send rule.
+		if (isHost){
+			myConnection.send({type: "sendrule", data: settings})
+		}
+	}
+}
+function initOnlineGame(){
+	cancelAnimationFrame(timerId);
+	readyTimer = 3000;
+	timeInit = undefined;
+	document.getElementById("readyline").style.display = "none";
+	document.getElementById("dassignedplayer").style.display = "block";
+	document.getElementById("asspltext").textContent = assignedPlayer == 1 ? "White" : "Black";
+	document.getElementById("resetbtntext").textContent = "Disconnect";
+	closeWindow();
+	resetGame();
+	rotCounter = 0;
+	if (!isHost){ //other gets the init first they send over the initial random block cache for sync
+		myConnection.send({type: "start", data: blockCache});
+	}
+	else { //host gets this second, they need to fill in the block cache with the sync value AFTER the reset happens for them,
+		blockCache = tempBlockCache;
+	}
+	runGame(); //and we're off!
+}
+function resetOnline(){ //a variety of states that have to be reverted when a game ends
+	iAmReady = false;
+	opponentIsReady = false;
+	choicesMade = [false, false];
+	hoststartingselector.value = "";
+	hostruleselector.value = "";
+	joinersavehostrule.checked = false;
+	document.getElementById('meready').textContent = "I'm not ready";
+	document.getElementById('otherready').textContent = "not ready";
+	document.getElementById('joinerrule').textContent = "";
+	document.getElementById('joinerstarting').textContent = "";
+}
+function exitOnline(){
+	closeWindow();
+	resetOnline();
+	onlineMode = false;
+	settings = structuredClone(tempSettings);
+	tempSettings = {};
+	otherAccount = {};
+	tempBlockCache = [];
+	isConnected = false;
+	document.getElementById("onlineuserdisplay").style.display = "none";
+	document.getElementById("lastgameresult").style.display = "none";
+	document.getElementById("fullonline").style.display = "none";
+	document.getElementById("hostsettings").style.display = "none";
+	document.getElementById("joinerline").style.display = "none";
+	document.getElementById("hostline").style.display = "block";
+	document.getElementById("dassignedplayer").style.display = "none";
+	document.getElementById("resetbtntext").textContent = "Reset";
+	resetGame();
+}
+function disconnectBtnFn(){
+	initiatedDisconnect = true;
+	myConnection.close();
+	exitOnline();
+}
+function connectionEndFn(){
+	if (!initiatedDisconnect){
+		alert("Opponent has disconnected");
+		exitOnline();
+	}
+	initiatedDisconnect = false;
+}
+
+//GAMEPLAY.
+
+//these are the gameplay states, these "could" be in an object but it doesn't *really* matter beyond convenience
+var gameRunning = false;
 var currentBlock = [];
-var blockCache = [generateBlock(), generateBlock(), generateBlock(), generateBlock()]; //we need this to show previews
-blockCache[1] = otherPlayerify(blockCache[0]);
-blockCache[3] = otherPlayerify(blockCache[2]);
-var currentPlayer = -1; //1 is white, -1 is black
+var blockCache = Array(4);
+blockCache[0] = generateBlock();
+blockCache[1] = generateOtherBlock(blockCache[0]);
+blockCache[2] = generateBlock();
+blockCache[3] = generateOtherBlock(blockCache[2]);
+var remainingBalancingPieces = []; //if generation mode 1 is used, this holds the overflowed pieces
+var currentPlayer = 0; //1 is white, 0 is black
 var currentPhase = 1; //1 is tetris, -1 is chess
 var isBlockFalling = false;
 var hasSelected = false;
@@ -243,91 +1073,181 @@ var aqkdjhsiou = true; //obfuscation XDD
 var looper = 42;
 var wKingExists = true;
 var bKingExists = true;
-function runGame(){
+var linesCleared = 0;
+var totalTurns = 0;
+var firstPass = true; //fixes an issue
+
+//continuity -- initial
+
+function runGame(loop=true){ //really only the teris loop
+	console.log(currentBlock);
+	gameRunning = true;
+	var currentFallrate = Math.max(0, Math.min(settings.maxSpeed, settings.baseSpeed + linesCleared*settings.acceleration));
 	if (currentPhase == 1){
 		if (!isBlockFalling){ //we make a new block here
-			currentBlock = blockCache[0];
-			blockCache[0] = blockCache[1];
-			blockCache[1] = blockCache[2];
-			blockCache[2] = blockCache[3];
-			blockCache[3] = currentPlayer == -1 ? generateBlock() : otherPlayerify(blockCache[2]);
-			offset = [Math.floor(settings.width / 2) - 1, 0];
+			currentBlock = blockCache.shift();
+			var newBlock = currentPlayer == 0 ? generateBlock() : generateOtherBlock(blockCache[2]);
+			blockCache.push(newBlock);
+			offset = [Math.floor(settings.width / 2) - 1, -currentBlock.length];
 			isBlockFalling = true;
 			for (let i = 0; i < currentBlock.length; i++){ //megre onto board
-				for (let j = 0; j < currentBlock[0].length; j++){
-					if(currentBlock[i][j] != -1 && boardMap[i+offset[1]][j+offset[0]] != -1){
-						alert(`${currentPlayer == 1 ? "white" : "black"} wins`);
-						resetGame();
-					}
+				for (let j = 0; j < currentBlock.length; j++){
 				}
 			}
+			//switch to tetris completes here, data is ready to send (why are we doing this here???)
+			if (onlineMode){
+				myConnection.send({type: "totetris", data: {boardMap: boardMap,
+														remainingBalancingPieces: remainingBalancingPieces,
+														currentPlayer: currentPlayer,
+														blockCache: blockCache,
+														totalTurns: totalTurns,
+														currentBlock: currentBlock,
+														offset: offset,
+														moveAnimationProperties: moveAnimationProperties}});
+				myConnection.send({type: "offset", data: offset});
+			}
 		}
-		if (doFall()){
+		if (onlineMode && firstPass && assignedPlayer == 0){
+			firstPass = false; //in online the starting player starts the game loop twice, this should take care of that (dumb hack but w/e)
+			return;
+		}
+		if (onlineMode && assignedPlayer != currentPlayer){
+		return; //in this case we are just drawing what the other player sends us, no need to run the game
+		}
+		if (!loop || doFall()){
 			currentPhase = -1; //we enter here when the piece lands
-			for (let i = 0; i < currentBlock.length; i++){ //megre onto board
-				for (let j = 0; j < currentBlock[0].length; j++){
-					if(currentBlock[i][j] != -1){
-						boardMap[i+offset[1]][j+offset[0]] = currentBlock[i][j];
+			if (currentBlock.length > 0){
+				console.log(currentBlock);
+				for (let i = 0; i < currentBlock.length; i++){ //megre onto board
+					for (let j = 0; j < currentBlock.length; j++){
+						if(currentBlock[i][j][0]){
+							if (i+offset[1] < 0){
+								declareWinner(1-currentPlayer, "overflow");; //if you try to place something above the board, you lose
+							}
+							if (i+offset[1] >= 0 && currentBlock.length > 0){
+								boardMap[i+offset[1]][j+offset[0]] = currentBlock[i][j];
+							}
+						}
 					}
 				}
 			}
 			currentBlock = [];
 			isBlockFalling = false;
 			for (let i = settings.height - 1; i >= 0; i--){ //line clears
-				if (boardMap[i].reduce((a, c) => {return a && (c > -1)}, true)){ //checks if line is full
-					for (let j = i; j > 0; j--){
-						boardMap[j] = structuredClone(boardMap[j-1]);
+				if (boardMap[i].reduce((a, c) => {return a && c[0]}, true)){ //checks if line is full
+					var skipIndexes = [];
+					if (settings.kingsUnclearable){
+						for (let k = 0; k < settings.width; k++){
+							if (boardMap[i][k][2] == 0){
+								skipIndexes.push(k);
+							}
+						}
 					}
-					boardMap[0] = Array(settings.width).fill(-1);
+					for (let j = i; j > 0; j--){
+						for (let k = 0; k < settings.width; k++){
+							if (!skipIndexes.includes(k)){
+								boardMap[j][k] = structuredClone(boardMap[j-1][k]);
+							}
+						}
+					}
+					boardMap[0] = Array(settings.width).fill([false, -1, -1, 0]).map((t, i) => skipIndexes.includes(i) ? boardMap[0][i] : [false, -1, -1, 0]);
 					i += 1;
+					linesCleared++;
 				}
 			}
 			wKingExists = false;
 			bKingExists = false;
-			for (q of boardMap){
-				wKingExists ||= q.includes(1);
-				bKingExists ||= q.includes(7);
+			for (let q of boardMap){
+				for (let r of q){
+					wKingExists ||= r[1]==1 && r[2]==0;
+					bKingExists ||= r[1]==0 && r[2]==0; //looking for kings [2]=0
+				}
 			}
-			if (wKingExists && !bKingExists) {alert("white wins"); resetGame();}
-			if (!wKingExists && bKingExists) {alert("black wins"); resetGame();}
-			if (!wKingExists && !bKingExists) {alert("draw"); resetGame();}
+			if (wKingExists && !bKingExists) {declareWinner(1, "line clear");}
+			if (!wKingExists && bKingExists) {declareWinner(0, "line clear");}
+			if (!wKingExists && !bKingExists) {declareWinner(2, "line clear");}
+			//switch to chess completes here, data is ready to send (why are we doing this here???)
+			if (onlineMode){
+				myConnection.send({type: "tochess", data: {linesCleared: linesCleared, boardMap: boardMap}});
+			}
 		}
-		else {
-			looper = setTimeout(runGame, fallrate);
+		else if (currentFallrate != 0 && loop){
+			looper = setTimeout(runGame, 1000/currentFallrate);
 		}
 	}
 	render();
 }
 function render(){
+	//ui
+	var currentFallrate = Math.max(0, Math.min(settings.maxSpeed, settings.baseSpeed + linesCleared*settings.acceleration));
+	document.getElementById("fallrate").textContent = currentFallrate == 0 ? "-" : (1000/currentFallrate).toFixed(0);
+	document.getElementById("nlines").textContent = linesCleared;
+	document.getElementById("nturns").textContent = totalTurns;
+	document.getElementById("whoseturn").textContent = currentPlayer == 1 ? "White" : "Black";
 	for (let i = 0; i < settings.height; i++){ //board
 		for (let j = 0; j < settings.width; j++){
-			drawTile(i, j, boardMap[i][j]);
+			drawTile(i, j, boardMap[i][j], "b");
+			if (moveAnimationProperties.running && i == moveAnimationProperties.endLoc[0] && j == moveAnimationProperties.endLoc[1]){
+				drawTile(i, j, moveAnimationProperties.endValue, "b");
+			}
 		}
 	}
-	for (let i = 0; i < currentBlock.length; i++){ //current block
-		for (let j = 0; j < currentBlock[0].length; j++){
-			if(currentBlock[i][j] != -1){
-				drawTile(i+offset[1], j+offset[0], currentBlock[i][j]);
+	if (currentPhase == 1){
+		for (let i = 0; i < currentBlock.length; i++){ //current block
+			for (let j = 0; j < currentBlock.length; j++){
+				if(currentBlock[i][j][0]){
+					drawTile(i+offset[1], j+offset[0], currentBlock[i][j], "b");
+				}
+			}
+		}
+	}
+	//next
+	var a = Math.max(...settings.blockTypes.map(x => x.length));
+	for (let i = 0; i < a; i++){ 
+		for (let j = 0; j < a; j++){
+			switch (settings.previewType){
+				case 1:
+					drawTile(i, j, safeIndex(safeIndex(blockCache[onlineMode ? (assignedPlayer + currentPlayer + 1)%2 : 0], i, [false, -1, -1, 0]), j, [false, -1, -1, 0]), "one");
+				break;
+				case 2:
+					drawTile(i, j, safeIndex(safeIndex(blockCache[1-currentPlayer], i, [false, -1, -1, 0]), j, [false, -1, -1, 0]), "black"); //0 2, 1 3
+					drawTile(i, j, safeIndex(safeIndex(blockCache[currentPlayer], i, [false, -1, -1, 0]), j, [false, -1, -1, 0]), "white"); //0 3, 1 2
+				break;
 			}
 		}
 	}
 }
-function drawTile(x, y, piece){
-	var t = document.getElementById(`b${x}x${y}`);
-	if (piece != -1){
-		t.textContent = piece == 0 ? "" : pieces[Math.floor((piece-1) / 6)][(piece - 1) % 6]; //<-- this feels bad??
-		t.classList.add("tile");
+function drawTile(x, y, piece, namespace){
+	piece ||= [false, -1, -1, 0]; //drawing nothing
+	if (x < 0 || x >= settings.height || y < 0 || y >= settings.width){ //this check should really be outside, 
+		return;
 	}
-	else {
-		t.textContent = ""
+	var t = document.getElementById(`${namespace}${x}x${y}`);
+	if (!piece[0]){ //empty space
+		t.textContent = "";
 		t.classList.remove("tile");
+		return;
 	}
+	if (piece[1] == -1 || piece[2] == -1){ //unoccupied tiles
+		t.textContent = "";
+		t.classList.add("tile");
+		return;
+	}
+	t.classList.remove("piece0", "piece1", "piece2");
+	t.classList.add("tile", `piece${piece[1]}`); //occupied tiles
+	t.textContent = pieces[piece[2]];
+	return;
 }
-function doFall(){
+function doFall(send = true){
 	var landedFlag = false;
+	if (currentBlock.length == 0){
+		return false; //fixes a thing if you die by overflow in online mode (or maybe it was something else that fixed that? i don't exactly remember)
+	}
 	for (let i = 0; i < currentBlock.length; i++){
-		for (let j = 0; j < currentBlock[0].length; j++){
-			if (currentBlock[i][j] != -1 && (i + offset[1] == settings.height - 1 || boardMap[i + offset[1] + 1][j + offset[0]] != -1)){ //collison
+		for (let j = 0; j < currentBlock.length; j++){
+			if (i + offset[1] >= -1 &&
+					currentBlock[i][j][0] &&
+					(i + offset[1] == settings.height - 1 || boardMap[i + offset[1] + 1][j + offset[0]][0])){ //collison
 				landedFlag = true;
 			}
 		}
@@ -335,15 +1255,24 @@ function doFall(){
 	if (!landedFlag){
 		offset[1] += 1;
 	}
+	else {
+		runGame(false);
+	}
+	if (onlineMode && send){
+		myConnection.send({type: "offset", data: offset});
+	}
 	return landedFlag;
 }
 function moveLeft(){
 	var landedFlag = false;
 	for (let i = 0; i < currentBlock.length; i++){
-		for (let j = 0; j < currentBlock[0].length; j++){
-			if (currentBlock[i][j] != -1 && (j + offset[0] == 0 || boardMap[i + offset[1]][j + offset[0] - 1] != -1)){ //collison
+		for (let j = 0; j < currentBlock.length; j++){
+			if (i + offset[1] >= 0 && i + offset[1] < settings.height && j + offset[0] >= 0 && j + offset[0] < settings.width &&
+				currentBlock[i][j][0] && (j + offset[0] == 0 || boardMap[i + offset[1]][j + offset[0] - 1][0])){ //collison
+
 				landedFlag = true;
 			}
+			
 		}
 	}
 	if (!landedFlag){
@@ -353,8 +1282,10 @@ function moveLeft(){
 function moveRight(){
 	var landedFlag = false;
 	for (let i = 0; i < currentBlock.length; i++){
-		for (let j = 0; j < currentBlock[0].length; j++){
-			if (currentBlock[i][j] != -1 && (j + offset[0] == settings.width || boardMap[i + offset[1]][j + offset[0] + 1] != -1)){ //collison
+		for (let j = 0; j < currentBlock.length; j++){
+			if (i + offset[1] >= 0 && i + offset[1] < settings.height && j + offset[0] >= 0 && j + offset[0] < settings.width &&
+				currentBlock[i][j][0] && (j + offset[0] == settings.width - 1 || boardMap[i + offset[1]][j + offset[0] + 1][0])){ //collison
+
 				landedFlag = true;
 			}
 		}
@@ -364,16 +1295,27 @@ function moveRight(){
 	}
 }
 function handleChess(x, y){
-	if (hasSelected){
-		attack(x, y);
+	if (currentPhase != -1 || (onlineMode && assignedPlayer != currentPlayer)){ //we do not allow playing chess during fall, why was this not in the previous verson? ike god, what ws i DOING???
+		return;
 	}
-	else if(3 - 2*Math.ceil(boardMap[x][y] / 6) == currentPlayer){
+	if (hasSelected){
+		if (moveList.map((a) => a.join(",")).includes(`${x},${y}`)){
+			attack(x, y);
+			return;
+		}
+		else {
+			deselect();
+		}
+	}
+	if ((boardMap[x][y][1] == currentPlayer || boardMap[x][y][1] == 2) && boardMap[x][y][2] != -1){
 		currentTarget = [x, y];
 		moveList = determinePossibleMoves(x, y);
 		if (moveList.length != 0){
 			document.getElementById(`b${x}x${y}`).classList.add("current");
 			for (r of moveList){
-				document.getElementById(`b${r[0]}x${r[1]}`).classList.add("moves");
+				if (boardMap[r[0]][r[1]][2] != 0){
+					document.getElementById(`b${r[0]}x${r[1]}`).classList.add("moves"); //do not allow attacking kings
+				}
 			}
 			hasSelected = true;
 		}
@@ -391,19 +1333,20 @@ function deselect(){
 }
 function determinePossibleMoves(x, y){ //takes a tile
 	if (currentPhase == -1){
-		switch (boardMap[x][y] % 6){ //♔,♕,♖,♗,♘,♙
-			case 1:
-				return checkAvailabilityByOffset([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]], [x, y], Math.ceil(boardMap[x][y] / 6));
-			case 2:
-				return checkAvailabilityByLines([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]], [x, y], Math.ceil(boardMap[x][y] / 6));
-			case 3:
-				return checkAvailabilityByLines([[1, 0], [0, 1], [-1, 0], [0, -1]], [x, y], Math.ceil(boardMap[x][y] / 6));
-			case 4:
-				return checkAvailabilityByLines([[1, 1], [-1, 1], [-1, -1], [1, -1]], [x, y], Math.ceil(boardMap[x][y] / 6));
-			case 5:
-				return checkAvailabilityByOffset([[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]], [x, y], Math.ceil(boardMap[x][y] / 6));
+		switch (boardMap[x][y][2]){ //♔,♕,♖,♗,♘,♙
 			case 0:
-				return NcheckAvailabilityByOffset([[-1, 0]], [x, y], Math.ceil(boardMap[x][y] / 6)).concat(CcheckAvailabilityByOffset([[-1, 1], [-1, -1]], [x, y], Math.ceil(boardMap[x][y] / 6)));
+				return checkAvailabilityByOffset([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]], [x, y], boardMap[x][y][1]);
+			case 1:
+				return checkAvailabilityByLines([[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]], [x, y], boardMap[x][y][1]);
+			case 2:
+				return checkAvailabilityByLines([[1, 0], [0, 1], [-1, 0], [0, -1]], [x, y], boardMap[x][y][1]);
+			case 3:
+				return checkAvailabilityByLines([[1, 1], [-1, 1], [-1, -1], [1, -1]], [x, y], boardMap[x][y][1]);
+			case 4:
+				return checkAvailabilityByOffset([[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]], [x, y], boardMap[x][y][1]);
+			case 5:
+				return NcheckAvailabilityByOffset([[-1, 0]], [x, y], boardMap[x][y][1])
+						.concat(CcheckAvailabilityByOffset([[-1, 1], [-1, -1]], [x, y], boardMap[x][y][1]));
 		}
 	}
 	else {
@@ -411,9 +1354,13 @@ function determinePossibleMoves(x, y){ //takes a tile
 	}
 }
 function checkAvailabilityByOffset(olist, pos, col){
+	//in these functions you'd think we need to include a rule for no capturing the king
+	//that rule is enforced elsewhere, these need to be able to see the king because they are used when chekcing for ckeck / checkmate
 	var result = [];
 	for (o of olist){
-		if (pos[0] + o[0] >= 0 && pos[0] + o[0] < settings.height && pos[1] + o[1] >= 0 && pos[1] + o[1] < settings.width && boardMap[pos[0] + o[0]][pos[1] + o[1]] > -1 && Math.ceil(boardMap[pos[0] + o[0]][pos[1] + o[1]] / 6) != col){
+		if (pos[0] + o[0] >= 0 && pos[0] + o[0] < settings.height && pos[1] + o[1] >= 0 && pos[1] + o[1] < settings.width && //check bounds
+			boardMap[pos[0] + o[0]][pos[1] + o[1]][0] && (boardMap[pos[0] + o[0]][pos[1] + o[1]][1] != col || col == 2) //check if we can move here (2 is neutral, can attack anyone)
+	){
 			result.push([pos[0] + o[0], pos[1] + o[1]]);
 		}
 	}
@@ -422,7 +1369,9 @@ function checkAvailabilityByOffset(olist, pos, col){
 function CcheckAvailabilityByOffset(olist, pos, col){ //capture only
 	var result = [];
 	for (o of olist){
-		if (pos[0] + o[0] >= 0 && pos[0] + o[0] < settings.height && pos[1] + o[1] >= 0 && pos[1] + o[1] < settings.width && boardMap[pos[0] + o[0]][pos[1] + o[1]] > 0 && Math.ceil(boardMap[pos[0] + o[0]][pos[1] + o[1]] / 6) != col){
+		if (pos[0] + o[0] >= 0 && pos[0] + o[0] < settings.height && pos[1] + o[1] >= 0 && pos[1] + o[1] < settings.width && 
+			boardMap[pos[0] + o[0]][pos[1] + o[1]][0] && boardMap[pos[0] + o[0]][pos[1] + o[1]][1] >= 0 && (boardMap[pos[0] + o[0]][pos[1] + o[1]][1] != col || col == 2)
+			){
 			result.push([pos[0] + o[0], pos[1] + o[1]]);
 		}
 	}
@@ -431,7 +1380,8 @@ function CcheckAvailabilityByOffset(olist, pos, col){ //capture only
 function NcheckAvailabilityByOffset(olist, pos, col){ //no capture
 	var result = [];
 	for (o of olist){
-		if (pos[0] + o[0] >= 0 && pos[0] + o[0] < settings.height && pos[1] + o[1] >= 0 && pos[1] + o[1] < settings.width && boardMap[pos[0] + o[0]][pos[1] + o[1]] == 0){
+		if (pos[0] + o[0] >= 0 && pos[0] + o[0] < settings.height && pos[1] + o[1] >= 0 && pos[1] + o[1] < settings.width && boardMap[pos[0] + o[0]][pos[1] + o[1]][0] &&
+			(boardMap[pos[0] + o[0]][pos[1] + o[1]][1] == -1 || boardMap[pos[0] + o[0]][pos[1] + o[1]][2] == -1)){
 			result.push([pos[0] + o[0], pos[1] + o[1]]);
 		}
 	}
@@ -443,15 +1393,20 @@ function checkAvailabilityByLines(olist, pos, col){
 	var temphaha = structuredClone(olist);
 	var isAlive = olist.fill(true); //terrible workaround
 	olist = temphaha;
-	var headsLeft = Number(olist.length); //[Number] is needed so it isn't linked to the length of the list
+	var headsLeft = Number(olist.length); //`Number` is needed so it isn't linked to the length of the list
 	var distance = 1;
 	var i = 0;
 	while (headsLeft > 0 && distance < 100){
 		i = 0;
 		for (o of olist){
-			if (isAlive[i] && pos[0] + o[0]*distance >= 0 && pos[0] + o[0]*distance < settings.height && pos[1] + o[1]*distance >= 0 && pos[1] + o[1]*distance < settings.width && boardMap[pos[0] + o[0]*distance][pos[1] + o[1]*distance] > -1 && Math.ceil(boardMap[pos[0] + o[0]*distance][pos[1] + o[1]*distance] / 6) != col){
+			if (isAlive[i] && 
+							pos[0] + o[0]*distance >= 0 && pos[0] + o[0]*distance < settings.height &&
+							pos[1] + o[1]*distance >= 0 && pos[1] + o[1]*distance < settings.width && 
+							boardMap[pos[0] + o[0]*distance][pos[1] + o[1]*distance][0] &&
+							(boardMap[pos[0] + o[0]*distance][pos[1] + o[1]*distance][1] != col || col == 2)
+				){
 				result.push([pos[0] + o[0]*distance, pos[1] + o[1]*distance]);
-				if (boardMap[pos[0] + o[0]*distance][pos[1] + o[1]*distance] > 0){
+				if (boardMap[pos[0] + o[0]*distance][pos[1] + o[1]*distance][0] && boardMap[pos[0] + o[0]*distance][pos[1] + o[1]*distance][1] > -1){
 					headsLeft -= 1;
 					isAlive[i] = false;
 				}
@@ -471,56 +1426,80 @@ function checkAvailabilityByLines(olist, pos, col){
 var previousMovedValue = 0;
 var previousAttackedValue = 0;
 function attack(x, y){
-	if (boardMap[x][y] == 1 || boardMap[x][y] == 7){
-		alert("you can't attack the king directly (i have to put this here because of bad code, hopefully it'll be fixed soon)");
+	if (boardMap[x][y][2] == 0){ //kings
 		return;
 	}
-	if (moveList.map((a) => a.join(",")).includes(`${x},${y}`)){ //you can't compare arrays directly
-		previousAttackedValue = boardMap[x][y];
-		boardMap[x][y] = boardMap[currentTarget[0]][currentTarget[1]];
-		previousMovedValue = boardMap[currentTarget[0]][currentTarget[1]];
-		boardMap[currentTarget[0]][currentTarget[1]] = 0; //GO AN DFUCKING KILL YOURSELF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!GXS	EU8WQ HZCD132KL.É 8,DKZLQOPCU,KL.
-		if (checkFor(currentPlayer, "check")){ //you cannot move into check
-			hasSelected = true;
-			boardMap[x][y] = previousAttackedValue;
-			boardMap[currentTarget[0]][currentTarget[1]] = previousMovedValue;
-			if (checkFor(-currentPlayer, "mate")){
-				alert(`${currentPlayer == -1 ? "white" : "black"} wins`);
-				resetGame();
-				return;
-			}
-			alert("this leaves your king in check you can't do that");
+
+	moveAnimationProperties.startLoc = currentTarget;
+	moveAnimationProperties.startValue = boardMap[currentTarget[0]][currentTarget[1]];
+	moveAnimationProperties.endLoc = [x, y];
+	moveAnimationProperties.endValue = boardMap[x][y];
+	moveAnimationProperties.activate = true;
+
+	previousAttackedValue = boardMap[x][y];
+	boardMap[x][y] = boardMap[currentTarget[0]][currentTarget[1]];
+	previousMovedValue = boardMap[currentTarget[0]][currentTarget[1]];
+
+	boardMap[currentTarget[0]][currentTarget[1]] = [true, -1, -1, 0]; //GO AN DFUCKING KILL YOURSELF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!GXS	EU8WQ HZCD132KL.É 8,DKZLQOPCU,KL.
+	if (checkForCheck(currentPlayer)){ //you cannot move into check
+		hasSelected = true;
+		boardMap[x][y] = previousAttackedValue;
+		boardMap[currentTarget[0]][currentTarget[1]] = previousMovedValue;
+		if (checkForCheckmate(currentPlayer)){
+			declareWinner(1-currentPlayer, "checkmate");
 			return;
 		}
-		document.getElementById(`b${currentTarget[0]}x${currentTarget[1]}`).classList.remove("current");
-		for (let i = 0; i < settings.height; i++){
-			for (let j = 0; j < settings.width; j++){
-				document.getElementById(`b${i}x${j}`).classList.remove("moves");
-			}
-		}
-		render();
-		currentPhase = 1;
-		currentPlayer *= -1;
-		document.getElementById("whoseturn").textContent = currentPlayer == 1 ? "white" : "black";
-		hasSelected = false;
-		if (checkFor(currentPlayer, "check") && checkFor(currentPlayer, "mate")){
-			alert(`${currentPlayer == 1 ? "white" : "black"} wins`);
-			resetGame();
-			return;
-		}
-		runGame();
+		alert("this leaves your king in check you can't do that");
+		return;
 	}
+	document.getElementById(`b${currentTarget[0]}x${currentTarget[1]}`).classList.remove("current");
+	for (let i = 0; i < settings.height; i++){
+		for (let j = 0; j < settings.width; j++){
+			document.getElementById(`b${i}x${j}`).classList.remove("moves");
+		}
+	}
+	currentPhase = 1; //we set this here instead of in afterMove to disable clicking on the board when the promotion dialog is open
+	requestAnimationFrame(moveAnimationFn);
+	render();
+	if (settings.canPromote && x === 0 && boardMap[x][y][2] == 5){ //if promotion is enabled AND we move to the top row AND we moved a pawn
+		document.getElementById("promotionoptions").classList.remove("piece0", "piece1", "piece2");
+		document.getElementById("promotionoptions").classList.add(`piece${boardMap[x][y][1]}`);
+		document.getElementById("promotionmenu").style.display = "block";
+		document.getElementById("promotionmenu").style.top = `${document.getElementById(`b${x}x${y}`).offsetTop - 50}px`;
+		document.getElementById("promotionmenu").style.left = `${document.getElementById(`b${x}x${y}`).offsetLeft}px`;
+		promotionData.loc = [x, y];
+		promotionData.color = boardMap[x][y][1];
+		return;
+	}
+	afterMove();	
+}
+function selectPrmotion(p){
+	boardMap[promotionData.loc[0]][promotionData.loc[1]][2] = p;
+	document.getElementById("promotionmenu").style.display = "none";
+	afterMove();
+}
+
+function afterMove(){
+	render();
+	totalTurns++;
+	currentPlayer = 1-currentPlayer;
+	hasSelected = false;
+	if (checkForCheck(currentPlayer) && checkForCheckmate(currentPlayer)){
+		declareWinner(currentPlayer, "checkmate");
+		return;
+	}
+	runGame();
 }
 var inCheck = false;
-function checkFor(color, thing){ //1 is white, -1 is black // yeah iuts set up in a kinda stupid way
+function checkForCheck(color){
 	var enemyMoves = [];
 	var kingMoves = [];
 	for (let i = 0; i < settings.height; i++){
 		for (let j = 0; j < settings.width; j++){
-			if (Math.ceil(boardMap[i][j] / 6)*(-2)+3 == -color){ // 1;2 -> 1;-1
+			if (boardMap[i][j][1] == 1-color || boardMap[i][j][1] == 2){ // oppoosing color
 				enemyMoves = enemyMoves.concat(determinePossibleMoves(i, j));
 			}
-			if (boardMap[i][j] == -3*color + 4){ //1 or 7
+			if (boardMap[i][j][1] == color && boardMap[i][j][2] == 0){ //our king
 				kingPosition = `${i},${j}`;
 				kingMoves = determinePossibleMoves(i, j);
 			}
@@ -528,53 +1507,159 @@ function checkFor(color, thing){ //1 is white, -1 is black // yeah iuts set up i
 	}
 	enemyMoves = enemyMoves.map((a) => a.join(","));
 	kingMoves = kingMoves.map((a) => a.join(","));
-	if (thing == "check"){
-		return enemyMoves.includes(kingPosition);
-	}
-	if (thing == "mate"){
-		return !(kingMoves.map((a) => enemyMoves.includes(a)).includes(true));
-	}
+	return enemyMoves.includes(kingPosition);
 }
-//left: check/mate, reward for line clears(?),  
+function checkForCheckmate(color){
+	var possibleMoves = [];
+	var kingPosition = [0, 0];
+	for (let i = 0; i < settings.height; i++){
+		for (let j = 0; j < settings.width; j++){
+			if (boardMap[i][j][1] == color){
+				possibleMoves = possibleMoves.concat(determinePossibleMoves(i, j).map(x => [[i, j], x])); //[moved loc, target loc]
+				if (boardMap[i][j][2] == 0){
+					kingPosition = [i, j];
+				}
+			}
+		}
+	}
+	var targetMemory = [];
+	var movedMemory = [];
+	var safe = true;
+	for (let i of possibleMoves){ 
+		//test every move and see if we're still in check
+		movedMemory = structuredClone(boardMap[i[0][0]][i[0][1]]); 
+		targetMemory = structuredClone(boardMap[i[1][0]][i[1][1]]);
+		boardMap[i[0][0]][i[0][1]] = [true, -1, -1, 0];
+		boardMap[i[1][0]][i[1][1]] = movedMemory;
+		safe &&= checkForCheck(color);
+		boardMap[i[0][0]][i[0][1]] = movedMemory;
+		boardMap[i[1][0]][i[1][1]] = targetMemory;
+	}
+	return safe;
+}
+var lastAssignedPlayer = -1;
+function declareWinner(player, message, t=true){
+	if (!onlineMode){
+		alert(`${["Black wins", "White wins", "Draw"][player]} by ${message}`);
+		resetGame();
+		return;
+	}
+	//Online mode will take a lot more diplomacy... UGH!!!!!!!!!!!!!!
+	resetOnline();
+	showWindow("onlinemenu");
+	document.getElementById("lastgameresult").style.display = "block";
+	lastAssignedPlayer = assignedPlayer;
+	document.getElementById("resulttext").innerText = `${player == 2 ? "Draw" : (player == lastAssignedPlayer) ? "You won" : "Lost"} by ${message}`
+	iAmReady = false;
+	opponentIsReady = false;
+	if (t) {
+		myConnection.send({type: "gameend", data: {player: player, message: message}})
+	}
+
+}
+//left:  reward for line clears(?),  
 generateBoard();
 document.addEventListener("keydown", (k) => {
+	//universal commands
+	if ((!gameRunning) || (onlineMode && currentPlayer != assignedPlayer)){
+		return;
+	}
+	//commands during gameplay
 	switch (k.key){
 		case "ArrowRight":
 		case "d":
 		case "D":
 			moveRight();
+			if (onlineMode){
+				myConnection.send({type: "offset", data: offset});
+			}
 			break;
 		case "ArrowLeft":
 		case "a":
 		case "A":
 			moveLeft();
+			if (onlineMode){
+				myConnection.send({type: "offset", data: offset});
+			}
 			break;
 		case "ArrowDown":
 		case "s":
 		case "S":
 			doFall();
+			if (onlineMode){
+				myConnection.send({type: "offset", data: offset});
+			}
 			break;
 		case "ArrowUp":
 		case "w":
 		case "W":
 			currentBlock = rot(currentBlock);
+			rotCounter++;
 			for (let i = 0; i < currentBlock.length; i++){
-				for (let j = 0; j < currentBlock[0].length; j++){
-					if ((boardMap[i + offset[1]][j + offset[0]] != -1 || i + offset[1] >= settings.height || j + offset[0] < 0 || j + offset[0] >= settings.width) && aqkdjhsiou) {
-						currentBlock = rot(rot(rot(currentBlock))); //undoes the rotation
+				for (let j = 0; j < currentBlock.length; j++){
+					if ( 	i + offset[1] >= 0 && //we allow rotating during fall-in
+							((!(i + offset[1] >= 0 && i + offset[1] < settings.height && j + offset[0] >= 0 && j + offset[0] < settings.width) && currentBlock[i][j][0]) ||//if we're out of bounds
+							((i + offset[1] >= 0 && i + offset[1] < settings.height && j + offset[0] >= 0 && j + offset[0] < settings.width) && boardMap[i + offset[1]][j + offset[0]][0])) && //or we're overlapping
+							aqkdjhsiou)
+						{
+						currentBlock = rot(rot(rot(currentBlock))); //we undo the rotation (by rotatig three more times...)
+						rotCounter--;
 						aqkdjhsiou = false;
 					}
 				}
 			}
 			aqkdjhsiou = true;
+			if (onlineMode){
+				myConnection.send({type: "rot", data: rotCounter});
+			}
 			break;
 		case " ":
-			while (!doFall()) {}
+			while (!doFall(false)) {} //space to drop until we can't anymore, the fall function has both an effect and a return value 
 		default:
 			break;
 	}
 	render();
-})
+});
+
+//load.
+
+var tempLoadData = localStorage.getItem("ct_settings");
+if (tempLoadData){ //if there is a savefile to be loaded
+	savedSettings = JSON.parse(tempLoadData);
+	for (let s of savedSettings){
+		s = fillDefaults(s, defaultSettings);
+	}
+	//for future version add Something to fill in default values for new properties if loading an old save
+}
+else {
+	localStorage.setItem("ct_settings", JSON.stringify(savedSettings));
+}
+
+tempLoadData = localStorage.getItem("ct_account");
+if (tempLoadData){
+	account = JSON.parse(tempLoadData);
+}
+else {
+	//this means we need a new account
+	var intext = window.prompt("Welcome to Chesstris! Please enter a username.");
+	if (!intext){
+		window.alert("Okay, rude...");
+		intext = "";
+	}
+	account.username = intext;
+	localStorage.setItem("ct_account", JSON.stringify(account));
+}
+
+//setup dependent parts.
+
+document.getElementById('myusername').textContent = account.username;
+
+//save on exit.
+
+document.addEventListener("visibilitychange", () => {
+	localStorage.setItem("ct_settings", JSON.stringify(savedSettings));
+	localStorage.setItem("ct_account", JSON.stringify(account))
+});
 </script>
 </body>
 </html>
