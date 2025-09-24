@@ -166,7 +166,8 @@ canvas {
 			<span id="resulttext"></span>
 			<br>
 		</div>
-		<div id="hostline">Your ID is <span id="gamecode" style="text-decoration: underline;" onclick="navigator.clipboard.writeText(myId)"></span> (click to copy). Send this code to your opponent.<br></div>
+		<div id="hostline">Your ID is <span id="gamecode" style="text-decoration: underline;" onclick="navigator.clipboard.writeText(myId)"></span> (click to copy). Send this code to your opponent.<br>
+					<span class="clickable" onclick="disconnectBtnFn()">[Disconnect]</span></div>
 		<div id="bruhline" style="display: none;">If you see this, you are probably trying to join a game that is already running.<br>In any case, you should probably <span class="clickable" onclick="disconnectBtnFn();">[disconnect]</span>.</div>
 		<div id="fullonline" style="display: none;">
 			<div>Connected to <span id="windowothername"></span> | <span class="clickable" onclick="disconnectBtnFn()">Disconnect</span></div>
@@ -401,6 +402,12 @@ var account = {
 	username: "",
 }
 function resetGame(){
+	if (Math.random()*2e12 < 1){
+		document.body.style.backgroundImage = "url(sandwise.png)";
+	}
+	else {
+		document.body.style.backgroundImage = "none";
+	}
 	closeSettings();
 	generateBoard();
 	gameRunning = false;
@@ -1076,11 +1083,9 @@ var bKingExists = true;
 var linesCleared = 0;
 var totalTurns = 0;
 var firstPass = true; //fixes an issue
-
 //continuity -- initial
 
 function runGame(loop=true){ //really only the teris loop
-	console.log(currentBlock);
 	gameRunning = true;
 	var currentFallrate = Math.max(0, Math.min(settings.maxSpeed, settings.baseSpeed + linesCleared*settings.acceleration));
 	if (currentPhase == 1){
@@ -1117,7 +1122,6 @@ function runGame(loop=true){ //really only the teris loop
 		if (!loop || doFall()){
 			currentPhase = -1; //we enter here when the piece lands
 			if (currentBlock.length > 0){
-				console.log(currentBlock);
 				for (let i = 0; i < currentBlock.length; i++){ //megre onto board
 					for (let j = 0; j < currentBlock.length; j++){
 						if(currentBlock[i][j][0]){
@@ -1166,6 +1170,19 @@ function runGame(loop=true){ //really only the teris loop
 			if (wKingExists && !bKingExists) {declareWinner(1, "line clear");}
 			if (!wKingExists && bKingExists) {declareWinner(0, "line clear");}
 			if (!wKingExists && !bKingExists) {declareWinner(2, "line clear");}
+
+			//if you have no possible moves, play resumes with the other player dropping the next pieceű
+			var possibleMoves = [];
+			for (let i = 0; i < settings.height; i++){
+				for (let j = 0; j < settings.width; j++){
+					if (boardMap[i][j][1] == color || boardMap[i][j][1] == 2){ // oppoosing color
+						possibleMoves = possibleMoves.concat(determinePossibleMoves(i, j));
+					}
+				}
+			}
+			if (possibleMoves.length == 0){
+				afterMove();
+			}
 			//switch to chess completes here, data is ready to send (why are we doing this here???)
 			if (onlineMode){
 				myConnection.send({type: "tochess", data: {linesCleared: linesCleared, boardMap: boardMap}});
