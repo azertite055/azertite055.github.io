@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<head>
+    <title>Division Generator</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container" style="width: 800px; height:30px; outline: black 1px solid;"></div>
+    <div>the division list is a comma-seperated list of whole numbers 0,1,2, etc</div>
+    <label for="ilist">Division list: </label><input type="text" name="ilist" id="ilist" onchange="updateDisplay()">
+    <br>
+    <label for="iiters">Iterations: </label><input type="number" name="iiters" id="iiters" onchange="updateDisplay()">
+    <br>
+    <div>&nbsp;<span id="bigalert" style="color: red; display: none;">Results with a lot of parts are not autocomputed to prevent freezing. Click this button to calculate: <button onclick="updateDisplay(false)">!!!</button></span></div>
+    ratio: <span id="dratio"></span>
+    <br>
+    parts: <span id="dparts"></span>
+    <br>
+    normlen: <span id="dnormlen"></span>
+    <br>
+    <button onclick="a = new AudioContext(); playTimestamps(timestamps, Number(isoundlen.value))"> Play sound</button><label for="isoundlen"> Length (s): </label><input type="number" name="isoundlen" id="isoundlen">
+    <br>
+    <button onclick="document.getElementById('exportarea').value = divparts.join(',')">Export parts</button>
+    <button onclick="document.getElementById('exportarea').value = timestamps.join(',')">Export timestamps</button>
+    <br>
+    <textarea placeholder="Export data will appear here" id="exportarea"></textarea>
+    <br><br><br>
+    <h2>What is this?</h2>
+    <div>
+        Segments are identified with a number, with 0 being the base, and each one after (1,2,...) is a certian ratio times shorter than the last<br>
+        The ratio is automatically calculated based on the division list<br>
+        Each iteration, the type 0 segments are split into smaller segments according to the division list<br>
+        The exact iteration rule is: n&RightArrow;n-1 for nonzero n, and 0&RightArrow;(division list)<br>
+        
+        Normlen is the normalized length, if we consider a 0 segment as the unit<br>
+        The sequences generated have a kind of order but are not periodic in general<br>
+        Examples:<br>
+        0,0: halving<br>
+        0,1: golden ratio / fibonacci<br>
+        0,0,1: silver ratio<br>
+        0,1,2: tribonacci<br>
+        0,2: narayana's cows<br>
+    </div>
+    <script>
+var divparts = [];
+var timestamps = [];
+function subdivide(x, d){
+    return x.flatMap(t => t > 0 ? t-1 : d);
+}
+function solvePolynoms(a, init){
+	var now = init;
+	var last = init-1000;
+	while (Math.abs(now-last) > 0.0000000001){
+		last = now;
+		now -= evaluatePolynoms(a, now) / evaluatePolynoms(derivativePolynoms(a), now); //newton's method
+	}
+	return now;
+}
+function evaluatePolynoms(a, point){
+	return a.reduce((x, y, z) => x + y*(point**z), 0)
+}
+function derivativePolynoms(a){
+	var b = a.map((x, y) => x * y);
+	b.shift();
+	return b;
+}
+//this accidentally finds the reciprocal of the root but whatever we needed that anyway
+function findRatio(d){
+    var s = Array(100).fill(0);
+    for (let i of d){
+        s[i]--;
+    }
+    s.unshift(1)
+    return solvePolynoms(s, 2);
+} 
+function getTimestamps(d, iter){
+    var list = [0];
+    for (let i = 0; i < iter; i++){
+        list = subdivide(list, d);
+    }
+    divparts = list;
+    var timelist = Array(list.length).fill(0);
+    var r = findRatio(d);
+    for (let i = 1; i < timelist.length; i++){
+        timelist[i] = timelist[i-1] + r**list[i];
+    }
+    timelist = timelist.map(x => x*r**iter);
+    timestamps = timelist;
+}
+
+var c = document.createElement("canvas");
+c.width = 800;
+c.height = 30;
+document.getElementById("container").appendChild(c);
+var cd = c.getContext("2d");
+function draw(a){
+    cd.reset();
+    cd.fillStyle = "black"
+    for (let x of a){
+        cd.fillRect(x*800, 0, 1, 30);
+    }
+}
+function updateDisplay(limited = true){
+    if (!limited){
+        document.getElementById("bigalert").style.display = "none";
+    }
+    var d = ilist.value.split(",").map(x => Number(x));
+    var iter = Number(iiters.value);
+    var r = findRatio(d);
+    if (r**-iter > 1e5 && limited){
+        document.getElementById("bigalert").style.display = "inline";
+        return;
+    }
+    getTimestamps(d, iter);
+    draw(timestamps);
+    document.getElementById("dratio").textContent = 1/r;
+    document.getElementById("dparts").textContent = timestamps.length;
+    document.getElementById("dnormlen").textContent = 1/r**iter;
+}
+
+var notelen = 0.4;
+var a = new AudioContext();
+function playTimestamps(data, t){
+    var notedata = Array(a.sampleRate*notelen).fill(0);
+    notedata = notedata.map((x, i) => 0.2*Math.sin(i/a.sampleRate*1666)*(notedata.length-i)/notedata.length);
+    console.log(notedata);
+    var size = Math.floor(a.sampleRate*t)
+    var s = new AudioBuffer({
+        length: size,
+        sampleRate: a.sampleRate,
+    });
+    var sdata = s.getChannelData(0);
+    for (let x of data){
+        var pos = Math.floor(x*size);
+        for (let i = 0; i < notedata.length && pos+i < size ; i++){
+            sdata[pos+1] += notedata[i];
+        }
+    }
+    var snode = new AudioBufferSourceNode(a, {buffer: s});
+    snode.connect(a.destination);
+    snode.start(a.currentTime, 0, t);
+}
+
+
+
+
+    </script>
+</body>
