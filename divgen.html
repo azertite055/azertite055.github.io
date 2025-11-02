@@ -186,7 +186,7 @@ function playTimestamps(timeData, t, dl=false){
 
     //create stroage
     var notedata = Array(a.sampleRate*notelen).fill(0);
-    notedata = notedata.map((x, i) => Math.cos(i * (2*Math.PI) * notefreq / a.sampleRate) * (notedata.length-i)/notedata.length);
+    notedata = notedata.map((x, i) => Math.sin(i * (2*Math.PI) * notefreq / a.sampleRate) * (notedata.length-i)/notedata.length);
     var baseSize = Math.ceil(a.sampleRate*t)
     var totalSize = baseSize + notedata.length;
     var s = new AudioBuffer({
@@ -226,3 +226,4 @@ function playTimestamps(timeData, t, dl=false){
 }
     </script>
 </body>
+
