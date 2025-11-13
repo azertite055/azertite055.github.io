@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <title>Fenceo</title>
+    <meta name="descripton" content="Block stacking game where you have to onstruct closed loops. Gluten-free!">
+    <style>
+.c {
+    text-align: center;
+}
+body {
+	background-color: white;
+	font-family: courier;
+	font-size: 16px;
+	overflow: hidden;
+}
+table {
+	text-align: left;
+	border: 1px solid black;
+	border-spacing: 0px;
+	margin-left: auto;
+	margin-right: auto;
+}
+td {
+	border: 1px solid black;
+}
+#game{
+	background-color: rgb(110, 110, 110);
+}
+.utile {
+	height: 40px;
+	overflow: hidden;
+}
+.tile {
+    width: 40px;
+	height: 40px;
+    border: none;
+	padding: 1px;
+	text-align: center;
+	overflow: hidden;
+}
+#effects{
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+#clearscore {
+	position: absolute;
+	width: fit-content;
+	display: none;
+	font-size: 26px;
+	font-weight: bold;
+	background-color: rgb(0, 0, 0);
+	outline: 0px solid white;
+}
+#gameover {
+	position: absolute;
+	top: 40%;
+	left: 5%;
+	width: 90%;
+	font-size: 36px;
+	background-color: black;
+	text-align: center;
+	color: white;
+	border: 2px solid white;
+
+}
+.clickable:hover {
+	cursor: pointer;
+	text-decoration: underline;
+	text-shadow: 0px 0px 4px black;
+}
+    </style>
+</head>  
+<body>
+    <div class="c">-=- Fenceo -=-</div>
+    <div class="c">Use arrows/wasd to move the blocks. If a closed loop is formed by the lines indicating the directions, the involved blocks will be cleared.</div>
+	<br><br><br>
+	<table><tr>
+		<td style="position: relative;">
+			<svg id="effects">
+				<polygon id="dropguide" fill="rgb(100,100,100)" fill-opacity="0.4" stroke="none"></polygon>
+				<polygon id="clearloopunder" stroke-width="9" stroke="rgb(0,0,0)" fill="none" stroke-linecap="round"></polygon>
+				<polygon id="clearloop" stroke-width="6" stroke="rgb(0,0,0)" fill="none" stroke-linecap="round"></polygon>
+				<line x1="0%" x2="100%" y1="42" y2="42" stroke="white" stroke-width="3"></line>
+			</svg>
+			<span id="clearscore"></span>
+			<span id="gameover" style="display: none;">Game over!</span>
+			<table id="game"></table>
+		</td>
+		<td class="c">
+			- Score -<br>
+			<span id="dscore"></span><br>
+			<br>
+			- Cleared -<br>
+			<span id="dcleared"></span><br>
+			<br> 
+			- Next -<br>
+			<span id="dpiece" style="width: 40px; height: 40px; display: block; margin-left: auto; margin-right: auto;"></span><br>
+			<br>
+			- Gamemode -<br>
+			<select name="gamemode" id="gamemode">
+				<option value="1c4">1-color 4</option>
+				<option value="2c33" selected>2-color 3+3</option>
+				<option value="3cx">3-color pure x</option>
+				<option value="4c44">4-color 4+4</option>
+				<option value="4cp">4-color pure +</option>
+				<option value="7cs">7-color pure all</option>
+			</select><br>
+			<br>
+			<span class="clickable" id="creset">[Reset]</span>
+		</td>
+	</tr></table>
+    <script type="module" src="../mytools.js"></script>
+    <script type="module" src="game.js"></script>
+</body>
+</html>
