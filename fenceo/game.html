@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Fenceo</title>
-    <meta name="descripton" content="Block stacking game where you have to onstruct closed loops. Gluten-free!">
+    <meta name="descripton" content="Block stacking game where you have to construct closed loops. Gluten-free!">
     <style>
 .c {
     text-align: center;
@@ -71,9 +71,112 @@ td {
 	text-decoration: underline;
 	text-shadow: 0px 0px 4px black;
 }
+#popups {
+	position: absolute;
+	display: flex;
+	align-items: center;
+  	justify-content: center;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 2000;
+}
+#popups > div{
+	display: none; /*overridden in code*/
+	width: fit-content;
+	height: fit-content;
+	padding: 6px;
+	border: 3px solid black;
+	box-shadow: 4px 4px 10px black;
+	background-color: white;
+	pointer-events: all;
+}
+.gencontainer {
+	outline: 1px solid black;
+	padding: 3px;
+}
+#generators {
+	max-height: 250px;
+	outline: 2px solid black;
+	overflow: scroll;
+	padding: 3px;
+}
+#help {
+	max-width: 600px;
+	max-height: 600px;
+	overflow: scroll;
+}
+.ruleerror{
+	color: red;
+	max-width: 400px;
+	max-height: 300px;
+	overflow: scroll;
+}
+
     </style>
 </head>  
 <body>
+	<div id="popups">
+		<div id="customrule">
+			<div class="c">- Edit custom rule -</div>
+			<div>
+				<select name="customruleoperation" id="customruleoperation">
+					<option id="crnullop" value="" selected>(Select operation)</option>
+					<option value="save">Save</option>
+					<option value="use">Load</option>
+					<option value="delete">Delete</option>
+				</select>
+				<select name="customrules" id="customrules">
+				</select>
+			</div>
+			Colors: <input type="number" min="1" max="15" step="1" id="customrulecolors" name="customrulecolors"><br>
+			Gravity: <input type="checkbox" id="customrulegravity" name="customrulegravity"><br>
+			Setup tile generators: <span id="caddgen" class="clickable">[+]</span> <span id="csubgen" class="clickable">[-]</span><br>
+			<div id="generators"></div>
+			<div id="globalerror" class="ruleerror"></div>
+			<br>
+			<span id="cwindowclose" class="clickable c">[ Set rule ]</span>&nbsp;<span id="cwindowcancel" class="clickable c">[ Cancel ]</span>
+		</div>
+		<div id="help">
+			<div class="c">= Help =</div>
+			<div class="c">(scroll down)</div>
+			<br><br>
+			<div class="c">- Tiles -</div>
+			<div>
+				The basic tiles have lines on them, to make a loop, a line has to be facing a line on another tile of the same color, and the turn the loop makes on a tile also has to keep the color the same. <br>
+				Rainbow (wild) lines can link to any color, wild corners similarly can allow any turn.<br>
+				Blockers are removed when the line a loop makes passes through them.
+			</div>
+			<br>
+			<div class="c">- Scoring -</div>
+			<div>
+				Score for each loop is (# of tiles in the loop * # of loops in paralell * combo)^2.<br>
+				Combo increases each time the pieces fall when gravity is enabled.
+			</div>
+			<br>
+			<div class="c">- Custom rules -</div>
+			<div>
+				When defining a custom rule, the generators each define a possible tile that can be spawned.<br>
+				Weight determines how often that generator is used to get the next tile.<br>
+				There are further settings to some tile types.
+			</div>
+			<br>
+			<div class="c">- Defining lines -</div>
+			<div>
+				Line definitions are made up of statements seperates with spaces, with each statement being made of tags seperated by commas.<br>
+				Example string: c1,n4 c2,n2,d0246,o1<br>
+				REQUIRED TAGS<br>
+				c &mdash; Color to add with this statement; c1, c2, c3... unique colors, c0 empty, cw wild. The numbers are just abstract color indices, and will be filled in with colors chosen at random from the ammount defined in the rule.<br>
+				n &mdash; Number of lines to add, eg n3. If there are less available directions, then all of them get filled.<br>
+				OPTIONAL TAGS<br>
+				d &mdash; Which directions to use. 0 points downward, 1,2,3... go clockwise. d0246 orthogonals, d1357 diagonals, etc. Default: all (01234567)<br>
+				o &mdash; List of colors that can be overwritten by this rule. Default: 0<br>
+				The given example (c1,n4 c2,n2,d0246,o01) will first generate 4 lines of the frits color with no restrictions, then up to 2 of a different color, which can overwrite the previous
+			</div>
+			<br>
+			<div id="hwindowclose" class="clickable c">[Close help]</div>
+		</div>
+	</div>
     <div class="c">-=- Fenceo -=-</div>
     <div class="c">Use arrows/wasd to move the blocks. If a closed loop is formed by the lines indicating the directions, the involved blocks will be cleared.</div>
 	<br><br><br>
@@ -83,6 +186,7 @@ td {
 				<polygon id="dropguide" fill="rgb(100,100,100)" fill-opacity="0.4" stroke="none"></polygon>
 				<polygon id="clearloopunder" stroke-width="9" stroke="rgb(0,0,0)" fill="none" stroke-linecap="round"></polygon>
 				<polygon id="clearloop" stroke-width="6" stroke="rgb(0,0,0)" fill="none" stroke-linecap="round"></polygon>
+				<g id="clearlines" stroke-width="6" fill="none" stroke-linecap="round"></g>
 				<line x1="0%" x2="100%" y1="42" y2="42" stroke="white" stroke-width="3"></line>
 			</svg>
 			<span id="clearscore"></span>
@@ -101,6 +205,7 @@ td {
 			<br>
 			- Gamemode -<br>
 			<select name="gamemode" id="gamemode">
+				<option value="custom" id="ccustommode">Custom...</option>
 				<option value="1c4">1-color 4</option>
 				<option value="2c33" selected>2-color 3+3</option>
 				<option value="3cx">3-color pure x</option>
@@ -109,10 +214,35 @@ td {
 				<option value="7cs">7-color pure all</option>
 			</select><br>
 			<br>
-			<span class="clickable" id="creset">[Reset]</span>
+			<span class="clickable" id="creset">[Reset]</span><br>
+			<br>
+			<span class="clickable" id="chelp">[Open help]</span>
 		</td>
 	</tr></table>
     <script type="module" src="../mytools.js"></script>
     <script type="module" src="game.js"></script>
+	<svg viewBox="0 0 -1 -1" style="width:1px; height:1px"><defs id="grads">
+		<!-- definitions.-->
+		<linearGradient id="wildgrad" gradientUnits="userSpaceOnUse">
+			<stop offset="8%" stop-color="red"/>
+			<stop offset="22%" stop-color="yellow"/>
+			<stop offset="36%" stop-color="lime"/>
+			<stop offset="50%" stop-color="cyan"/>
+			<stop offset="64%" stop-color="blue"/>
+			<stop offset="78%" stop-color="magenta"/>
+			<stop offset="92%" stop-color="red"/>
+		</linearGradient>
+		<radialGradient id="wildgradr" gradientUnits="objectBoundingBox">
+			<stop offset="0%" stop-color="red"/>
+			<stop offset="26%" stop-color="yellow"/>
+			<stop offset="43%" stop-color="lime"/>
+			<stop offset="59%" stop-color="cyan"/>
+			<stop offset="73%" stop-color="blue"/>
+			<stop offset="87%" stop-color="magenta"/>
+			<stop offset="100%" stop-color="red"/>
+		</radialGradient>
+		<line id="clearline" ></line>
+	</defs>
+	</svg>
 </body>
 </html>

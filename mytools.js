@@ -130,6 +130,11 @@ export function lexicographicOrder(a, b){
  * @param {number[]} a 
  */
 export function fromDist(a){
+	if (a.length == 0){
+		//shit
+		console.error("Empty distribution received");
+		return;
+	}
 	if (typeof a === "number") {return 0}
 	var r = Math.random() * a.reduce((p,q) => p+q);
 	var i = 0;
@@ -218,10 +223,10 @@ export function randomChoose(n, r){
 	return out;
 }
 /**
- * 
+ * Extract elemets of a given indices in i
  * @param {any[]} a 
  * @param {number[]} i 
- * @returns 
+ * @returns {any[]} [a[i[0]], a[i[1]],...]
  */
 export function indexMap(a, i){
 	return i.map((x) => a[x]);
@@ -256,9 +261,10 @@ export function randRange(a, b=0){
 }
 
 /**
- * Checks if the array is repeating after a while
- * @param {Array} a 
+ * use as await sleep(123);
+ * @param {number} ms 
+ * @returns 
  */
-export function hasLoop(a){
-
+export function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
