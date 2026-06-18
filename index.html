@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Azertite's Web Page!</title>
+<title>azertite055 Web PResence V1</title>
 <meta charset="utf-8">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -16,13 +16,26 @@ body {
 .center{
   text-align: center;
   }
+  .clickable:hover {
+	cursor: pointer;
+	text-decoration: underline;
+	text-shadow: 0px 0px 4px black;
+}
 </style>
 </head>
 <body>
 <div class="center">-=- Azertite's Web Page! -=-</div>
 <div class="center">Welcome to my page!</div><br>
-<div class="center"><span onclick="showTab('projects')">Projects </span>|<span onclick="showTab('sites')"> Things i like</span></div><br><br>
+<div class="center">
+  <span class="clickable" onclick="showTab('projects')"> Projects </span>|
+  <span class="clickable" onclick="showTab('sites')"> Things i like </span>|
+  <span class="clickable" onclick="showTab('me')"> About me </span>|
+  <span class="clickable" onclick="showTab('links')"> My links</span>|
+</div>
+<br><br>
+
 <div id="projects">
+   <div>These are my projects that i made.</div>
 <p><a href="fenceo/game.html">Fenceo</a> - A block stacking game where you make loops<br>
 Version: 2, last updated: 2026-02-10</p><br><br>
 <p><a href="chesstris.html">Chesstris</a> - A combination of chess and Tetris.<br>
@@ -37,16 +50,34 @@ Version: 1.0, last updated: 2024-02-01</p><br><br>
 Version: 3.0, last updated: 2024-07-03</p><br><br>
 <p><a href="seriatris.html">Seriatris</a> - A block stacking game where you make number series.<br>
 Version: 1.0, last updated: 2022-11-15</p><br><br>
-</div><div id="sites" style="display: none">
+</div>
+
+<div id="sites" style="display: none">
 These are some websites and games i like. I didn't make any of them.<br>
 <p><a href="https://www.utilities-online.info/">utilities-online.info</a> - A lot of different utilites for various things, mostly for dealing with text.</p>
 <p><a href="https://symbl.cc">symbl.cc</a> - A table of all Unicode characters.</p>
 <p><a href="https://www.color-hex.com/">color-hex.com</a> - Has information on every hex color. I find it funny that you can add comments to colors on it. Like bro, what insightful commentary could anyone have on <a href="https://www.color-hex.com/color/8b3ef1">#8B3EF1?</a></p>
 <p><a href="https://apple0726.itch.io/helixteus-3">Helixteus III</a> - An incremental space exploration game.</p>
 <p><a href="https://www.pentris.net/">Pentris</a> - Tetris with blocks of any size from 1 to 5.</p>
+<p><a href="https://galaxy.click/">galaxy.click</a> - A website for incremental games.</p>
 </div>
+
+<div id="me" style="display: none">
+  <div>Hi! On the internet, i am called Azertite. Use she/her pronouns perferably.<br>
+  I like the idea of math and programming and art, but my consistency is terrible.<br>
+  My "main" game is Geometry Dash. I also play web incremental games with some regularity.<br>
+  I study physics. <br>
+</div>
+</div>
+
+<div id="links" style="display: none">
+  <div>These are links to my other accounts, where you might find something.</div>
+  <div><a href="https://www.youtube.com/@azertite055">Youtube</a></div>
+  <div><a href="https://bsky.app/profile/azertite055.bsky.social">Bluesky</a></div>
+</div>
+
 <script>
-var tabs = ["projects", "sites"];
+var tabs = ["projects", "sites", "me", "links"];
 function showTab(tab){
 	tabs.forEach(element => document.getElementById(element).style.display=(element==tab?"block":"none"));
 }
